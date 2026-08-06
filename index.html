@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduMate AI - Your 24/7 AI Teacher Copilot</title>
+  <meta name="description" content="A student-friendly AI Teacher Copilot that explains lessons in multiple ways, helping students understand concepts after school.">
+  <link rel="stylesheet" href="styles.css">
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- ========================================== -->
+  <!-- 1. LANDING PAGE VIEW                       -->
+  <!-- ========================================== -->
+  <div id="landingView" class="app-view active">
+    
+    <!-- Navbar -->
+    <nav class="landing-nav">
+      <div class="logo-container">
+        <div class="logo-icon">E</div>
+        <span class="logo-text">EduMate AI</span>
+        <span class="logo-sub">Copilot</span>
+      </div>
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#parent">Parents</a></li>
+        <li><a href="#teacher">Teachers</a></li>
+      </ul>
+      <div class="nav-actions">
+        <button class="btn-3d btn-3d-white" onclick="switchToStudentView('home')">Log In</button>
+        <button class="btn-3d btn-3d-sky" onclick="switchToStudentView('home')">Start Learning</button>
+      </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero-section">
+      <div class="hero-left">
+        <h1>Learning <span class="highlight">Doesn't Stop</span> When School Ends.</h1>
+        <p>Your friendly 24/7 AI Teacher Copilot that helps you understand every lesson, anytime, anywhere. Explaining concepts in multiple ways until it makes sense.</p>
+        <div class="hero-ctas">
+          <button class="btn-3d btn-3d-orange" onclick="switchToStudentView('home')">
+            <i data-lucide="sparkles"></i> Start Learning Free
+          </button>
+          <button class="btn-3d btn-3d-white" onclick="playMockDemo()">
+            <i data-lucide="play-circle"></i> Watch Demo
+          </button>
+        </div>
+      </div>
+      
+      <div class="hero-right">
+        <div class="illustration-container">
+          <!-- Fun, rounded SVG representation of student & AI -->
+          <svg class="illustration-main" viewBox="0 0 400 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="400" height="350" fill="#E0F2FE" />
+            <!-- Desk line -->
+            <line x1="20" y1="280" x2="380" y2="280" stroke="#1E293B" stroke-width="4" />
+            
+            <!-- Cute Robot Mascot -->
+            <g id="mascot">
+              <rect x="250" y="100" width="80" height="70" rx="16" fill="white" stroke="#1E293B" stroke-width="4" />
+              <!-- Face screen -->
+              <rect x="260" y="110" width="60" height="40" rx="8" fill="#1E293B" />
+              <!-- Glowing eyes -->
+              <circle cx="275" cy="130" r="4" fill="#22C55E" />
+              <circle cx="305" cy="130" r="4" fill="#22C55E" />
+              <!-- Antenna -->
+              <line x1="290" y1="100" x2="290" y2="80" stroke="#1E293B" stroke-width="4" />
+              <circle cx="290" cy="76" r="6" fill="#F97316" stroke="#1E293B" stroke-width="3" />
+              <!-- Body -->
+              <rect x="260" y="174" width="60" height="70" rx="12" fill="white" stroke="#1E293B" stroke-width="4" />
+              <circle cx="290" cy="205" r="14" fill="#0EA5E9" />
+              <!-- Arms -->
+              <path d="M 256 190 Q 230 200 240 210" stroke="#1E293B" stroke-width="4" stroke-linecap="round" />
+              <path d="M 324 190 Q 350 200 340 210" stroke="#1E293B" stroke-width="4" stroke-linecap="round" />
+            </g>
+
+            <!-- Student Cartoon -->
+            <g id="student">
+              <!-- Head -->
+              <circle cx="120" cy="120" r="35" fill="#FED7AA" stroke="#1E293B" stroke-width="4" />
+              <!-- Hair -->
+              <path d="M 85 110 C 85 80, 155 80, 155 110 C 145 105, 95 105, 85 110 Z" fill="#1E293B" />
+              <!-- Specs -->
+              <rect x="100" y="112" width="18" height="14" rx="3" stroke="#1E293B" stroke-width="3" fill="none" />
+              <rect x="122" y="112" width="18" height="14" rx="3" stroke="#1E293B" stroke-width="3" fill="none" />
+              <line x1="118" y1="119" x2="122" y2="119" stroke="#1E293B" stroke-width="3" />
+              <!-- Smile -->
+              <path d="M 115 138 Q 120 144 125 138" stroke="#1E293B" stroke-width="3" fill="none" stroke-linecap="round" />
+              <!-- Body -->
+              <path d="M 90 170 C 90 155, 150 155, 150 170 L 155 240 L 85 240 Z" fill="#F97316" stroke="#1E293B" stroke-width="4" />
+              <!-- Book in hand -->
+              <rect x="110" y="210" width="50" height="40" rx="4" fill="#22C55E" stroke="#1E293B" stroke-width="3" transform="rotate(-15 110 210)" />
+              <line x1="120" y1="210" x2="155" y2="200" stroke="#E2E8F0" stroke-width="2" />
+              <line x1="123" y1="220" x2="158" y2="210" stroke="#E2E8F0" stroke-width="2" />
+            </g>
+
+            <!-- Dialogue cloud lines -->
+            <path d="M 160 110 Q 190 90 220 100" stroke="#1E293B" stroke-width="3" stroke-dasharray="5,5" />
+          </svg>
+          
+          <!-- Floating cards -->
+          <div class="floating-element float-1">
+            <i data-lucide="mic" style="color: var(--color-orange);"></i>
+            <span>Ask by Voice</span>
+          </div>
+          <div class="floating-element float-2">
+            <i data-lucide="help-circle" style="color: var(--color-sky);"></i>
+            <span>AI Quiz</span>
+          </div>
+          <div class="floating-element float-3">
+            <i data-lucide="book-open" style="color: var(--color-green);"></i>
+            <span>Story Mode</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Quick Features Strip -->
+    <section class="quick-features-bar">
+      <div class="quick-features-list">
+        <div class="quick-item qi-sky">
+          <i data-lucide="volume-2"></i>
+          <span>Voice Explanations</span>
+        </div>
+        <div class="quick-item qi-green">
+          <i data-lucide="file-text"></i>
+          <span>Scan Worksheets</span>
+        </div>
+        <div class="quick-item qi-orange">
+          <i data-lucide="edit-3"></i>
+          <span>Interactive Quizzes</span>
+        </div>
+        <div class="quick-item qi-purple">
+          <i data-lucide="globe"></i>
+          <span>Multi-language Tutor</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Detailed Feature Grid -->
+    <section id="features" class="section-container">
+      <div class="section-title">
+        <h2>Supercharge After-School Learning</h2>
+        <p>Built using modern AI techniques to make studying engaging, step-by-step, and tailored to every student's speed.</p>
+      </div>
+
+      <div class="feature-grid">
+        
+        <!-- Voice Conversation -->
+        <div class="card-3d feat-card">
+          <div class="feat-icon-wrap" style="background-color: var(--color-sky-light); border-color: var(--color-sky); color: var(--color-sky-dark);">
+            <i data-lucide="mic"></i>
+          </div>
+          <h3>Voice Conversation</h3>
+          <p>Student speaks naturally. EduMate answers back verbally in a conversational tone. Excellent for audits, spelling, or verbal explanations.</p>
+          <div class="feat-demo">
+            <div class="voice-wave-mock">
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scan Any Textbook -->
+        <div class="card-3d feat-card">
+          <div class="feat-icon-wrap" style="background-color: var(--color-orange-light); border-color: var(--color-orange); color: var(--color-orange-dark);">
+            <i data-lucide="camera"></i>
+          </div>
+          <h3>Scan Homework & Textbooks</h3>
+          <p>Take a picture of any worksheet, notebook, or textbook page. The AI automatically isolates the text and builds simple, helpful tutorials around it.</p>
+          <div class="feat-demo">
+            <div class="upload-mock-zone" onclick="switchToStudentView('homework')">
+              <i data-lucide="upload-cloud"></i>
+              <p>Upload textbook page</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Story Mode -->
+        <div class="card-3d feat-card">
+          <div class="feat-icon-wrap" style="background-color: var(--color-purple-light); border-color: var(--color-purple); color: var(--color-purple);">
+            <i data-lucide="book-open"></i>
+          </div>
+          <h3>Story Mode</h3>
+          <p>Converts static chapters into narratives. Instead of memorizing definitions, students follow interactive story quests explaining topics like water cycles or heat transfer.</p>
+          <div class="feat-demo">
+            <div class="story-card-preview">
+              <div class="story-card-preview-header">TOPIC: Evaporation</div>
+              <div class="story-card-preview-text">"One tiny water drop dreamed of reaching the sky, heating up in the warm sun..."</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visual Explanations -->
+        <div class="card-3d feat-card">
+          <div class="feat-icon-wrap" style="background-color: var(--color-green-light); border-color: var(--color-green); color: var(--color-green-dark);">
+            <i data-lucide="layers"></i>
+          </div>
+          <h3>Visual Explanations</h3>
+          <p>Complex scientific systems or math operations are mapped out step-by-step using custom illustrations, charts, and colored bullet steps.</p>
+          <div class="feat-demo">
+            <div class="visual-ex-preview">
+              <div class="vis-step"><span>1</span> Heat rises</div>
+              <div class="vis-step"><span>2</span> Molecules separate</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quiz Generator -->
+        <div class="card-3d feat-card">
+          <div class="feat-icon-wrap" style="background-color: var(--color-orange-light); border-color: var(--color-orange); color: var(--color-orange-dark);">
+            <i data-lucide="check-square"></i>
+          </div>
+          <h3>AI Quiz Generator</h3>
+          <p>Instantly spin up diagnostic quizzes from uploaded notes, textbook sections, or previous chat logs. Tracks growth dynamically.</p>
+          <div class="feat-demo">
+            <div class="quiz-card-preview">
+              <div class="quiz-preview-title">What triggers evaporation?</div>
+              <div class="quiz-opt-preview correct"><span>A) Thermal energy increase</span> <i data-lucide="check"></i></div>
+              <div class="quiz-opt-preview"><span>B) Higher gravity</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Explain Again System -->
+        <div class="card-3d feat-card">
+          <div class="feat-icon-wrap" style="background-color: var(--color-sky-light); border-color: var(--color-sky); color: var(--color-sky-dark);">
+            <i data-lucide="refresh-cw"></i>
+          </div>
+          <h3>Explain Again Options</h3>
+          <p>If a student doesn't grasp a response, they don't get stuck. Interactive filters rewrite the output instantly: Simpler, with an Example, as a Story, or in their native tongue.</p>
+          <div class="feat-demo">
+            <div class="language-pills-preview">
+              <div class="lang-pill">🇮🇳 Tamil</div>
+              <div class="lang-pill">🇮🇳 Hindi</div>
+              <div class="lang-pill">🇮🇳 Telugu</div>
+              <div class="lang-pill">🇬🇧 English</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Parent Dashboard Section -->
+    <section id="parent" class="previews-section section-container">
+      <div class="section-title">
+        <span class="tag-badge tag-green">Parent View</span>
+        <h2>Keep Track Without Hovering</h2>
+        <p>Know exactly what concepts your student is mastering and where they need extra help, via simple summaries sent directly to you.</p>
+      </div>
+
+      <div class="previews-grid">
+        <div class="preview-card">
+          <h3>Aarav's Study Insights</h3>
+          <div class="preview-content">
+            <div class="preview-stat-grid">
+              <div class="preview-stat-card">
+                <div class="preview-stat-val">35m</div>
+                <div class="preview-stat-lbl">Today's Time</div>
+              </div>
+              <div class="preview-stat-card">
+                <div class="preview-stat-val">85%</div>
+                <div class="preview-stat-lbl">Quiz Score Avg</div>
+              </div>
+            </div>
+            
+            <ul class="preview-bullets">
+              <li><i data-lucide="check-circle-2"></i> Completed 2 chapters of Science (Photosynthesis, Evaporation)</li>
+              <li><i data-lucide="alert-circle" style="color: var(--color-orange);"></i> Needs work on: Fractions & division principles</li>
+              <li><i data-lucide="lightbulb" style="color: var(--color-sky);"></i> Recommendation: Encourage Aarav to attempt the Fractions Story Quest</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="preview-card" style="background-color: #F8FAFC; border-style: dashed;">
+          <h3 style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 15px;">Parent Reports</h3>
+          <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px;">Every weekend, we email you a 2-minute breakdown of their progress, so you're always aligned with their learning needs without looking over their shoulder.</p>
+          <div style="background-color: white; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 15px; text-align: left;">
+            <strong style="display: block; margin-bottom: 5px; color: var(--color-green-dark); font-size: 0.85rem;">WEEKLY SUMMARY</strong>
+            <p style="font-size: 0.85rem; color: var(--text-main); margin-bottom: 0;">"Aarav excelled in biology definitions this week, showing 90% retention on quizzes. He struggled with subtraction decimals. The Copilot is helping him practice."</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Teacher companion Preview section -->
+    <section id="teacher" class="section-container">
+      <div class="section-title">
+        <span class="tag-badge tag-sky">Teacher Companion</span>
+        <h2>Supporting Teachers, Never Replacing</h2>
+        <p>Teachers remain the heart of classroom learning. EduMate supports teachers by answering student questions after hours and feeding back helpful learning gaps.</p>
+      </div>
+
+      <div class="previews-grid">
+        <div class="preview-card" style="background-color: #F8FAFC; border-style: dashed;">
+          <h3 style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 15px;">Teacher Dashboard Insights</h3>
+          <p style="color: var(--text-muted); font-size: 0.95rem;">EduMate aggregates student learning challenges anonymously, helping teachers structure the next day's revision blocks efficiently.</p>
+          <div style="margin-top: 20px; display: flex; align-items: center; gap: 15px; background: white; padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+            <i data-lucide="users" style="color: var(--color-sky); font-size: 1.5rem;"></i>
+            <div>
+              <h5 style="margin-bottom: 2px; font-size: 0.9rem;">Revision Suggestion</h5>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0;">18 students struggled with "Photosynthesis light phase" during homework last night.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="preview-card">
+          <h3>Class Grade 6-A Analytics</h3>
+          <div class="preview-content">
+            <div class="preview-stat-grid">
+              <div class="preview-stat-card">
+                <div class="preview-stat-val preview-stat-val-sky">82%</div>
+                <div class="preview-stat-lbl">Average class engagement</div>
+              </div>
+              <div class="preview-stat-card">
+                <div class="preview-stat-val preview-stat-val-sky">3</div>
+                <div class="preview-stat-lbl">Struggling topics flag</div>
+              </div>
+            </div>
+            
+            <ul class="preview-bullets teacher-bullets">
+              <li><i data-lucide="help-circle"></i> Top FAQ: "Why does chlorophyll reject green light?"</li>
+              <li><i data-lucide="trending-up"></i> Completion rate: 94% on weekly homework prep</li>
+              <li><i data-lucide="check"></i> Suggested revision: Plant cells structure revision sheet</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="landing-footer">
+      <div class="footer-logo">
+        <div class="logo-icon">E</div>
+        <span class="logo-text" style="color: white;">EduMate AI</span>
+      </div>
+      <p>Helping students bridge the gap between classroom teaching and independent study. 24/7 explanations in safe, friendly formats.</p>
+      <div class="footer-copy">
+        &copy; 2026 EduMate AI. All rights reserved. Designed for students, parents, and teachers.
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 2. STUDENT DASHBOARD VIEW                  -->
+  <!-- ========================================== -->
+  <div id="studentView" class="app-view">
+    <div class="student-dashboard-layout">
+      
+      <!-- Left Sidebar Navigation -->
+      <aside class="sidebar">
+        <div class="sidebar-logo">
+          <div class="logo-icon">E</div>
+          <span class="logo-text">EduMate AI</span>
+        </div>
+        
+        <ul class="sidebar-menu">
+          <li class="sidebar-item active" id="side-home">
+            <a onclick="switchTab('home')">
+              <i data-lucide="home"></i> <span>Home</span>
+            </a>
+          </li>
+          <li class="sidebar-item" id="side-chat">
+            <a onclick="switchTab('chat')">
+              <i data-lucide="message-square"></i> <span>AI Chat</span>
+            </a>
+          </li>
+          <li class="sidebar-item" id="side-story">
+            <a onclick="switchTab('story')">
+              <i data-lucide="book-open"></i> <span>Story Mode</span>
+            </a>
+          </li>
+          <li class="sidebar-item" id="side-voice">
+            <a onclick="switchTab('voice')">
+              <i data-lucide="mic"></i> <span>Voice Learning</span>
+            </a>
+          </li>
+          <li class="sidebar-item" id="side-homework">
+            <a onclick="switchTab('homework')">
+              <i data-lucide="camera"></i> <span>Homework Helper</span>
+            </a>
+          </li>
+          <li class="sidebar-item" id="side-quiz">
+            <a onclick="switchTab('quiz')">
+              <i data-lucide="check-square"></i> <span>AI Quizzes</span>
+            </a>
+          </li>
+          <li class="sidebar-item" id="side-progress">
+            <a onclick="switchTab('progress')">
+              <i data-lucide="bar-chart-2"></i> <span>Progress</span>
+            </a>
+          </li>
+        </ul>
+
+        <div class="sidebar-footer">
+          <div class="profile-widget" style="padding: 10px 8px;">
+            <div class="profile-avatar">A</div>
+            <div>
+              <p class="profile-name">Aarav</p>
+              <p style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700;">Grade 6 Student</p>
+            </div>
+          </div>
+          <button class="logout-btn" onclick="switchToLandingView()">
+            <i data-lucide="log-out"></i> Go to Landing Page
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Panel Container -->
+      <main class="main-content">
+        
+        <!-- Header -->
+        <header class="dashboard-header">
+          <div class="dh-left">
+            <h2 id="header-tab-title">Home Dashboard</h2>
+          </div>
+          <div class="dh-right">
+            <div class="streak-counter">
+              <i data-lucide="flame"></i>
+              <span>5 Day Streak!</span>
+            </div>
+            <div class="profile-widget">
+              <div class="profile-avatar">A</div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Dynamic Content Tabs -->
+        <div class="tab-content">
+          
+          <!-- TAB: HOME -->
+          <div id="tab-home" class="dashboard-tab active">
+            <div class="home-welcome-section">
+              <!-- Welcome and Continue Learning Card -->
+              <div class="card-3d greeting-card">
+                <h1>Good Evening, Aarav 👋</h1>
+                <p>Ready to continue your school lessons? Your AI Assistant is here to explain anything you didn't quite get today.</p>
+                <div class="continue-card-inner">
+                  <div class="continue-info">
+                    <h4>Next Lesson: Photosynthesis</h4>
+                    <p>Science • Grade 6 • 80% through chapter</p>
+                  </div>
+                  <button class="btn-3d btn-3d-white" onclick="switchTab('chat'); quickStartChat('Explain photosynthesis in simple terms')">
+                    Resume <i data-lucide="arrow-right"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Daily Goal Tracker -->
+              <div class="card-3d daily-goal-card">
+                <div class="goal-header">
+                  <span class="goal-title">Daily Study Goal</span>
+                  <span class="goal-percentage">12 / 20 mins</span>
+                </div>
+                <div class="goal-bar-outer">
+                  <div class="goal-bar-inner" style="width: 60%;"></div>
+                </div>
+                <p class="goal-tip"><i data-lucide="award"></i> Spend 8 more minutes today to maintain your streak!</p>
+                <div class="badge-row">
+                  <div class="badge-icon unlocked" title="5-Day Streak Badge">🔥</div>
+                  <div class="badge-icon unlocked" title="Quiz Explorer Badge">🧠</div>
+                  <div class="badge-icon" title="Locked: Story Finisher">📖</div>
+                  <div class="badge-icon" title="Locked: Perfect Quiz Score">🏆</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Home Content Grid -->
+            <div class="dashboard-grid-sections">
+              <!-- Left side: Recent lessons -->
+              <div>
+                <div class="lessons-section-title">
+                  <h3>Recent Study Topics</h3>
+                  <button class="btn-3d btn-3d-white" style="padding: 6px 12px; font-size: 0.8rem;" onclick="switchTab('chat')">View All</button>
+                </div>
+                <div class="lessons-list">
+                  
+                  <div class="card-3d lesson-card" style="padding: 16px;">
+                    <div class="lesson-card-left">
+                      <div class="lesson-subject-icon icon-science"><i data-lucide="droplet"></i></div>
+                      <div class="lesson-details">
+                        <h4>Water Evaporation</h4>
+                        <p>Science • Last studied yesterday</p>
+                      </div>
+                    </div>
+                    <button class="btn-3d btn-3d-white" onclick="quickExplanation('Evaporation')">Explain Again</button>
+                  </div>
+
+                  <div class="card-3d lesson-card" style="padding: 16px;">
+                    <div class="lesson-card-left">
+                      <div class="lesson-subject-icon icon-math"><i data-lucide="percent"></i></div>
+                      <div class="lesson-details">
+                        <h4>Dividing Fractions</h4>
+                        <p>Mathematics • Last studied 2 days ago</p>
+                      </div>
+                    </div>
+                    <button class="btn-3d btn-3d-white" onclick="quickExplanation('Dividing Fractions')">Explain Again</button>
+                  </div>
+
+                  <div class="card-3d lesson-card" style="padding: 16px;">
+                    <div class="lesson-card-left">
+                      <div class="lesson-subject-icon icon-english"><i data-lucide="book-open"></i></div>
+                      <div class="lesson-details">
+                        <h4>Past Tense Verbs</h4>
+                        <p>English Language • Last studied 4 days ago</p>
+                      </div>
+                    </div>
+                    <button class="btn-3d btn-3d-white" onclick="quickExplanation('Past Tense Verbs')">Explain Again</button>
+                  </div>
+
+                </div>
+              </div>
+
+              <!-- Right side: AI suggestions & revisions -->
+              <div>
+                <h3>AI Revision Prompts</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px; font-weight: 700;">Based on yesterday's homework helper results:</p>
+                
+                <div class="recent-revision-list">
+                  <div class="revision-item">
+                    <span class="rev-indicator"></span>
+                    <div class="rev-details">
+                      <h5>Simplify: Fractions Concept</h5>
+                      <p>Try the visual cake explanation</p>
+                    </div>
+                    <button class="rev-action-btn" onclick="quickExplanation('Explain fractions with a cake diagram')">Start</button>
+                  </div>
+
+                  <div class="revision-item">
+                    <span class="rev-indicator green"></span>
+                    <div class="rev-details">
+                      <h5>Quick Evaporation Story</h5>
+                      <p>A drop's journey story is unlocked</p>
+                    </div>
+                    <button class="rev-action-btn" onclick="switchTab('story'); document.getElementById('storyInput').value='Evaporation'; generateStoryFromInput()">Read</button>
+                  </div>
+
+                  <div class="revision-item">
+                    <span class="rev-indicator sky"></span>
+                    <div class="rev-details">
+                      <h5>Test your knowledge</h5>
+                      <p>3-question Math Quiz available</p>
+                    </div>
+                    <button class="rev-action-btn" onclick="switchTab('quiz')">Quiz</button>
+                  </div>
+                </div>
+
+                <!-- Teacher revision suggestions -->
+                <div style="background-color: var(--color-sky-light); border: 2px solid var(--color-sky); border-radius: var(--radius-md); padding: 15px; margin-top: 25px;">
+                  <strong style="color: var(--color-sky-dark); font-size: 0.85rem; display: block; margin-bottom: 5px;"><i data-lucide="message-square"></i> TEACHER SUGGESTION</strong>
+                  <p style="font-size: 0.8rem; color: var(--text-main); margin-bottom: 0; font-weight: 600;">Mrs. Priya flagged: "Practice matching prime numbers up to 50 for the upcoming test."</p>
+                  <button class="btn-3d btn-3d-sky" style="padding: 6px 12px; font-size: 0.8rem; width: 100%; margin-top: 10px;" onclick="switchTab('chat'); quickStartChat('Give me some practice questions for prime numbers under 50')">Open Chat Prep</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB: AI CHAT -->
+          <div id="tab-chat" class="dashboard-tab">
+            <div class="chat-tab-container">
+              <!-- Left panel: Core Chat Interface -->
+              <div class="chat-main-panel">
+                <!-- Header -->
+                <div class="chat-header">
+                  <div class="chat-bot-identity">
+                    <div class="bot-avatar">E</div>
+                    <div class="bot-status">
+                      <h3>EduMate AI Assistant</h3>
+                      <p>Online &amp; Ready to Explaining</p>
+                    </div>
+                  </div>
+                  <div>
+                    <span class="tag-badge tag-sky">24/7 Teacher Copilot</span>
+                  </div>
+                </div>
+
+                <!-- Chat history -->
+                <div class="chat-history" id="chatHistory">
+                  
+                  <!-- Initial Bot Greeting -->
+                  <div class="chat-msg ai">
+                    <div class="msg-avatar">
+                      <div class="bot-avatar" style="width: 32px; height: 32px; font-size: 1rem;">E</div>
+                    </div>
+                    <div class="msg-bubble">
+                      <p>Hi Aarav! 👋 I'm your learning assistant. You can type homework questions, upload textbook photos, or record voice memos.</p>
+                      <p>What subject are we diving into today?</p>
+                    </div>
+                  </div>
+
+                </div>
+
+                <!-- Image / File attachment preview bar above inputs -->
+                <div class="chat-attachment-preview-bar" id="chatAttachmentPreview">
+                  <div class="attachment-preview-thumbnail" id="chatAttachmentThumbnail">
+                    <i data-lucide="image"></i>
+                    <button class="remove-attachment-btn" onclick="clearChatAttachment()">&times;</button>
+                  </div>
+                  <span class="attachment-name" id="chatAttachmentName">filename.jpg</span>
+                </div>
+
+                <!-- Bottom Input bar -->
+                <div class="chat-input-bar">
+                  <!-- Simulated File Input -->
+                  <input type="file" id="chatFileInput" style="display: none;" onchange="handleChatFileSelect(this)">
+                  <button class="chat-icon-action" title="Upload textbook or worksheet page" onclick="document.getElementById('chatFileInput').click()">
+                    <i data-lucide="paperclip"></i>
+                  </button>
+                  
+                  <!-- Main input box -->
+                  <div class="chat-input-wrapper">
+                    <input type="text" class="chat-text-input" placeholder="Ask anything... (e.g. 'Why is the sky blue?')" id="chatMessageInput" onkeydown="handleChatKeydown(event)">
+                    
+                    <!-- Send Button -->
+                    <button class="chat-icon-action" style="color: var(--color-sky);" onclick="sendChatMessage()">
+                      <i data-lucide="send"></i>
+                    </button>
+                  </div>
+
+                  <!-- Voice Mic Button -->
+                  <button class="chat-icon-action" id="chatMicBtn" title="Speak your question" onclick="toggleChatMic()">
+                    <i data-lucide="mic"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Right panel: Suggestions Sidebar -->
+              <aside class="chat-suggest-panel">
+                <div class="card-3d suggest-card">
+                  <h4>💡 Try asking these:</h4>
+                  <div class="suggest-question-list">
+                    <button class="suggest-q-item" onclick="quickStartChat('Explain photosynthesis in simple terms')">"How does Photosynthesis work?"</button>
+                    <button class="suggest-q-item" onclick="quickStartChat('Explain fractions with a cake diagram')">"Explain fractions using cake"</button>
+                    <button class="suggest-q-item" onclick="quickStartChat('I don\'t understand Question 5 of my Math homework: 3x + 9 = 24')">"Homework help: 3x + 9 = 24"</button>
+                    <button class="suggest-q-item" onclick="quickStartChat('Explain evaporation like a story')">"Tell me a story about evaporation"</button>
+                  </div>
+                </div>
+
+                <div class="card-3d suggest-card" style="border-style: dashed; padding: 20px;">
+                  <strong style="color: var(--color-orange-dark); font-size: 0.85rem; display: block; margin-bottom: 5px;"><i data-lucide="info"></i> HOW IT HELPS</strong>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0; line-height: 1.4;">EduMate AI does not do the homework for you. Instead, it breaks complex questions into mini lessons, teaching you step-by-step just like a teacher would.</p>
+                </div>
+              </aside>
+            </div>
+          </div>
+
+          <!-- TAB: STORY MODE -->
+          <div id="tab-story" class="dashboard-tab">
+            <div class="story-tab-grid">
+              
+              <!-- Input Panel -->
+              <div class="story-creator-panel">
+                <h3>Transform boring topics into stories</h3>
+                <p>Type in any topic from your textbook, and the AI will weave it into an illustrated, engaging fable.</p>
+                
+                <textarea class="story-input-field" rows="4" placeholder="Enter a subject (e.g. Water evaporation, Magna Carta, Volcanos, Prime Numbers)..." id="storyInput"></textarea>
+                
+                <div class="story-presets">
+                  <h4>Or choose a popular preset:</h4>
+                  <div class="preset-buttons">
+                    <button class="btn-preset" onclick="document.getElementById('storyInput').value='Water Evaporation'">Evaporation</button>
+                    <button class="btn-preset" onclick="document.getElementById('storyInput').value='How Plants Breathe'">Photosynthesis</button>
+                    <button class="btn-preset" onclick="document.getElementById('storyInput').value='The Solar System'">The Milky Way</button>
+                    <button class="btn-preset" onclick="document.getElementById('storyInput').value='Gravity'">Falling Apples</button>
+                  </div>
+                </div>
+
+                <button class="btn-3d btn-3d-purple" onclick="generateStoryFromInput()">
+                  <i data-lucide="sparkles"></i> Generate Interactive Story
+                </button>
+              </div>
+
+              <!-- Story Viewer Screen -->
+              <div class="card-3d story-viewer-panel" id="storyViewer">
+                
+                <!-- Initial State -->
+                <div class="story-placeholder" id="storyPlaceholder">
+                  <i data-lucide="book-open"></i>
+                  <h4>Your illustrated story will appear here</h4>
+                  <p style="font-size: 0.9rem; max-width: 300px; margin: 0 auto;">Select or type a topic and click generate to begin the journey.</p>
+                </div>
+
+                <!-- Active State -->
+                <div class="story-content-box" id="storyContentBox">
+                  <h3 class="story-title" id="activeStoryTitle">The Adventure of Splash</h3>
+                  <div class="story-illustration" id="storyIllustration">
+                    <!-- Dynamic SVG Illustration placeholders based on category -->
+                    <i data-lucide="cloud-rain"></i>
+                  </div>
+                  <div class="story-text-container" id="storyTextContainer">
+                    <!-- Text paragraphs dynamically inserted here -->
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          <!-- TAB: VOICE LEARNING -->
+          <div id="tab-voice" class="dashboard-tab">
+            <div class="voice-tab-container">
+              <!-- Big Avatar robot that animates during talks -->
+              <div class="voice-avatar-big" id="voiceAvatar">🤖</div>
+              
+              <h3 class="voice-status-heading" id="voiceStatusTitle">Ready to talk!</h3>
+              <p class="voice-status-sub" id="voiceStatusSub">Ask your questions aloud, and hear explanations naturally.</p>
+              
+              <!-- Waveform bars -->
+              <div class="voice-waveform-active" id="voiceWaveform">
+                <span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span>
+              </div>
+
+              <div class="voice-actions">
+                <button class="btn-3d btn-3d-sky" id="voiceStartBtn" onclick="toggleVoiceSession()">
+                  <i data-lucide="play"></i> Start Speaking
+                </button>
+                <button class="btn-3d btn-3d-white" onclick="switchTab('chat')">
+                  Go to Text Chat
+                </button>
+              </div>
+
+              <div class="card-3d" style="margin-top: 40px; text-align: left; width: 100%; max-width: 500px;">
+                <h4 style="font-size: 1rem; margin-bottom: 10px;"><i data-lucide="volume-x"></i> Voice Scripts (Subtitles)</h4>
+                <div style="background-color: var(--bg-primary); padding: 12px; border-radius: var(--radius-sm); min-height: 60px; font-style: italic; font-size: 0.9rem; color: var(--text-muted);" id="voiceSubtitleContainer">
+                  Click 'Start Speaking' to begin the conversation. Say "Tell me about evaporation."
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB: HOMEWORK SCAN -->
+          <div id="tab-homework" class="dashboard-tab">
+            <div class="scan-tab-container">
+              
+              <!-- Upload / Drop zone -->
+              <div class="scan-left-panel">
+                <h3>Scan worksheets, textbook questions or notes</h3>
+                <p style="color: var(--text-muted); margin-bottom: 20px; font-weight: 600;">EduMate extracts the question and acts as a tutor, explaining how to resolve it step-by-step.</p>
+                
+                <input type="file" id="homeworkFileInput" style="display: none;" onchange="handleHomeworkUpload(this)">
+                
+                <div class="scan-dropzone" onclick="document.getElementById('homeworkFileInput').click()">
+                  <i data-lucide="camera"></i>
+                  <p>Click to choose a photo of homework or drop file</p>
+                  <span>Supports JPG, PNG, PDF notes</span>
+                  
+                  <!-- Scanning overlay mockup elements -->
+                  <div class="scan-uploaded-image" id="scanUploadedImage">
+                    <img id="scanImageSrc" src="" alt="Homework page">
+                  </div>
+                  <div class="scan-laser-line" id="scanLaserLine"></div>
+                </div>
+              </div>
+
+              <!-- Output Breakdown Panel -->
+              <div class="scan-right-panel">
+                <div class="scan-placeholder" id="scanPlaceholder">
+                  <i data-lucide="loader"></i>
+                  <h4>OCR and Tutor breakdown appears here</h4>
+                  <p style="font-size: 0.9rem; max-width: 320px; margin: 0 auto; color: var(--text-light);">Upload an image containing text or a math problem on the left to activate scan tutor.</p>
+                  <button class="btn-3d btn-3d-orange" style="margin-top: 20px; font-size: 0.9rem;" onclick="mockHomeworkScan()">
+                    Use Mock Math Homework Page
+                  </button>
+                </div>
+
+                <div class="scan-results" id="scanResults">
+                  <h3>🔍 Extracted Homework Problem</h3>
+                  <div class="ocr-block">
+                    "Question 5: Solve the equation 3x + 9 = 24. Show your working steps."
+                  </div>
+
+                  <div class="scan-ai-explanation">
+                    <h4><i data-lucide="sparkles"></i> Teacher Copilot Guidance</h4>
+                    <p style="font-size: 0.95rem; margin-bottom: 12px; font-weight: 600;">Let's break this down together! The goal is to isolate the variable <strong>x</strong> on one side of the equals sign.</p>
+                    
+                    <ol class="scan-steps">
+                      <li>
+                        <strong>Step 1: Get rid of the constants.</strong> We have a +9 on the left. To balance, subtract 9 from both sides of the equation:
+                        <br><code style="background-color: white; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; font-weight: bold;">3x + 9 - 9 = 24 - 9 => 3x = 15</code>
+                      </li>
+                      <li>
+                        <strong>Step 2: Isolate the x.</strong> Since x is multiplied by 3, we divide both sides by 3 to find its value:
+                        <br><code style="background-color: white; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; font-weight: bold;">3x / 3 = 15 / 3 => x = 5</code>
+                      </li>
+                    </ol>
+
+                    <div style="margin-top: 15px; display: flex; gap: 10px;">
+                      <button class="btn-3d btn-3d-sky" style="padding: 6px 12px; font-size: 0.8rem;" onclick="switchTab('chat'); quickStartChat('Explain step 1 of equation 3x+9=24 again in Tamil')">Explain Step 1 in Tamil</button>
+                      <button class="btn-3d btn-3d-white" style="padding: 6px 12px; font-size: 0.8rem;" onclick="switchTab('chat'); quickStartChat('Give me another similar algebra problem to solve')">Practice Similar Problem</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- TAB: AI QUIZZES -->
+          <div id="tab-quiz" class="dashboard-tab">
+            <!-- Screen 1: Welcome/Config -->
+            <div class="quiz-welcome-screen" id="quizWelcomeScreen">
+              <i data-lucide="check-square"></i>
+              <h3>Interactive AI Quiz Generator</h3>
+              <p>EduMate compiles a dynamic quiz based on your recent chats and study logs to check what concepts are solid and what needs a revision look.</p>
+              
+              <div class="quiz-selectors">
+                <div class="quiz-selector-group">
+                  <label for="quizTopic">Select Subject</label>
+                  <select id="quizTopic" class="quiz-select-input">
+                    <option value="Science - Evaporation">Science - Water Cycles</option>
+                    <option value="Math - Fractions">Math - Dividing Fractions</option>
+                    <option value="History - Middle Ages">History - Ancient Civilizations</option>
+                  </select>
+                </div>
+                <div class="quiz-selector-group">
+                  <label for="quizDifficulty">Difficulty Level</label>
+                  <select id="quizDifficulty" class="quiz-select-input">
+                    <option value="Easy">Easy (Explain concepts)</option>
+                    <option value="Medium" selected>Medium (Problem Solving)</option>
+                    <option value="Hard">Hard (Challenges)</option>
+                  </select>
+                </div>
+              </div>
+
+              <button class="btn-3d btn-3d-orange" onclick="startMockQuiz()">
+                Generate AI Quiz Now
+              </button>
+            </div>
+
+            <!-- Screen 2: Active Quiz -->
+            <div class="quiz-active-screen" id="quizActiveScreen">
+              <div class="quiz-active-header">
+                <button class="btn-3d btn-3d-white" style="padding: 6px 12px; font-size: 0.8rem;" onclick="quitQuiz()">Quit Quiz</button>
+                <div class="quiz-progress-bar-outer">
+                  <div class="quiz-progress-bar-inner" id="quizProgressBar"></div>
+                </div>
+                <span id="quizQuestionNumber">Question 1 of 3</span>
+              </div>
+
+              <div class="card-3d quiz-question-box">
+                <div class="quiz-q-num" id="quizQuestionCategory">SCIENCE</div>
+                <div class="quiz-question-text" id="quizQuestionText">What happens to water molecules when they undergo evaporation?</div>
+              </div>
+
+              <div class="quiz-options-list" id="quizOptionsList">
+                <!-- Javascript will render options here -->
+              </div>
+
+              <!-- Answer Feedback banner -->
+              <div class="quiz-feedback-banner" id="quizFeedbackBanner">
+                <i data-lucide="info" id="quizFeedbackIcon"></i>
+                <span id="quizFeedbackText">Awesome work! Correct.</span>
+              </div>
+
+              <div style="text-align: right;">
+                <button class="btn-3d btn-3d-orange" id="quizNextBtn" onclick="nextQuizQuestion()" disabled>
+                  Check Answer
+                </button>
+              </div>
+            </div>
+
+            <!-- Screen 3: Quiz Finished Results -->
+            <div class="quiz-results-screen" id="quizResultsScreen">
+              <i data-lucide="award"></i>
+              <h3>Quiz Completed!</h3>
+              <div class="quiz-score-val" id="quizScoreVal">3 / 3</div>
+              <div class="quiz-score-tag" id="quizScoreTag">Excellent work, Aarav! You got a perfect score!</div>
+              
+              <div class="card-3d" style="margin-bottom: 30px; text-align: left;">
+                <h4 style="font-size: 1.05rem; margin-bottom: 10px;">📈 Concepts Learned:</h4>
+                <ul class="preview-bullets">
+                  <li><i data-lucide="check-circle-2"></i> Thermal energy molecular movement (+10 XP)</li>
+                  <li><i data-lucide="check-circle-2"></i> Latent heat states of matter (+10 XP)</li>
+                </ul>
+              </div>
+
+              <div style="display: flex; gap: 15px; justify-content: center;">
+                <button class="btn-3d btn-3d-sky" onclick="resetQuizView()">Take Another Quiz</button>
+                <button class="btn-3d btn-3d-white" onclick="switchTab('home')">Back to Dashboard</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB: PROGRESS -->
+          <div id="tab-progress" class="dashboard-tab">
+            <!-- Progress stats numbers cards -->
+            <div class="progress-stats-grid">
+              <div class="card-3d p-stat-card">
+                <div class="p-stat-icon">🔥</div>
+                <div class="p-stat-num">5 Days</div>
+                <div class="p-stat-lbl">Learning Streak</div>
+              </div>
+              <div class="card-3d p-stat-card">
+                <div class="p-stat-icon" style="color: var(--color-sky);">⏱️</div>
+                <div class="p-stat-num">2.4 hrs</div>
+                <div class="p-stat-lbl">Study Time (This Week)</div>
+              </div>
+              <div class="card-3d p-stat-card">
+                <div class="p-stat-icon" style="color: var(--color-green);">⭐</div>
+                <div class="p-stat-num">90%</div>
+                <div class="p-stat-lbl">Average Accuracy</div>
+              </div>
+              <div class="card-3d p-stat-card">
+                <div class="p-stat-icon" style="color: var(--color-orange);">🏆</div>
+                <div class="p-stat-num">8</div>
+                <div class="p-stat-lbl">Badges Unlocked</div>
+              </div>
+            </div>
+
+            <!-- Charts and lists row -->
+            <div class="chart-cards-row">
+              <!-- Weekly growth custom SVG column bars chart -->
+              <div class="card-3d chart-box">
+                <div class="chart-title-wrap">
+                  <div>
+                    <h3>Weekly Study Growth</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Time spent learning after-school each day</p>
+                  </div>
+                  <span class="tag-badge tag-sky">Goal: 20m/day</span>
+                </div>
+
+                <!-- Custom HTML SVG Bar chart -->
+                <div class="chart-bars-container">
+                  <div class="chart-bar-group">
+                    <div class="chart-bar-fill" style="height: 60%;"><span class="chart-bar-val">12m</span></div>
+                    <span class="chart-bar-lbl">Mon</span>
+                  </div>
+                  <div class="chart-bar-group">
+                    <div class="chart-bar-fill" style="height: 90%;"><span class="chart-bar-val">18m</span></div>
+                    <span class="chart-bar-lbl">Tue</span>
+                  </div>
+                  <div class="chart-bar-group">
+                    <div class="chart-bar-fill" style="height: 40%;"><span class="chart-bar-val">8m</span></div>
+                    <span class="chart-bar-lbl">Wed</span>
+                  </div>
+                  <div class="chart-bar-group">
+                    <div class="chart-bar-fill active" style="height: 100%;"><span class="chart-bar-val">20m</span></div>
+                    <span class="chart-bar-lbl">Thu</span>
+                  </div>
+                  <div class="chart-bar-group">
+                    <div class="chart-bar-fill" style="height: 50%;"><span class="chart-bar-val">10m</span></div>
+                    <span class="chart-bar-lbl">Fri</span>
+                  </div>
+                  <div class="chart-bar-group">
+                    <div class="chart-bar-fill" style="height: 0%;"><span class="chart-bar-val">0m</span></div>
+                    <span class="chart-bar-lbl">Sat</span>
+                  </div>
+                  <div class="chart-bar-group">
+                    <div class="chart-bar-fill" style="height: 0%;"><span class="chart-bar-val">0m</span></div>
+                    <span class="chart-bar-lbl">Sun</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Concept breakdown meter list -->
+              <div class="card-3d">
+                <h3>Concept Strength Breakdown</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; font-weight: 600;">Topics evaluated via chat and quiz performance.</p>
+                
+                <div class="concept-breakdown-list">
+                  <div class="concept-item">
+                    <div class="concept-info">
+                      <span>Water Evaporation</span>
+                      <span style="color: var(--color-green-dark)">94% Strong</span>
+                    </div>
+                    <div class="concept-bar-outer">
+                      <div class="concept-bar-inner" style="width: 94%; background-color: var(--color-green)"></div>
+                    </div>
+                  </div>
+
+                  <div class="concept-item">
+                    <div class="concept-info">
+                      <span>Plant Photosynthesis</span>
+                      <span style="color: var(--color-green-dark)">80% Strong</span>
+                    </div>
+                    <div class="concept-bar-outer">
+                      <div class="concept-bar-inner" style="width: 80%; background-color: var(--color-green)"></div>
+                    </div>
+                  </div>
+
+                  <div class="concept-item">
+                    <div class="concept-info">
+                      <span>Past Tense Verbs</span>
+                      <span style="color: var(--color-sky-dark)">65% Growing</span>
+                    </div>
+                    <div class="concept-bar-outer">
+                      <div class="concept-bar-inner" style="width: 65%; background-color: var(--color-sky)"></div>
+                    </div>
+                  </div>
+
+                  <div class="concept-item">
+                    <div class="concept-info">
+                      <span>Dividing Fractions</span>
+                      <span style="color: var(--color-orange-dark)">40% Needs Work</span>
+                    </div>
+                    <div class="concept-bar-outer">
+                      <div class="concept-bar-inner" style="width: 40%; background-color: var(--color-orange)"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- AI learning recommendation section -->
+            <div class="card-3d" style="background-color: var(--color-green-light); border-color: var(--color-green)">
+              <h3 style="color: var(--color-green-dark)"><i data-lucide="award"></i> Copilot Recommendations for Aarav</h3>
+              <p style="margin-top: 5px; font-size: 0.95rem; font-weight: 600;">EduMate AI recommends focusing on dividing fractions next. Try starting a Story Mode quest for fractions, which will show you visual shares of pizza and cookies before moving to the formula.</p>
+              <div style="margin-top: 15px; display: flex; gap: 15px;">
+                <button class="btn-3d btn-3d-green" onclick="switchTab('story'); document.getElementById('storyInput').value='Fractions with Pizza'; generateStoryFromInput()">
+                  Play Fractions Story Quest
+                </button>
+                <button class="btn-3d btn-3d-white" onclick="switchTab('chat'); quickStartChat('Explain how to divide fractions step-by-step with examples')">
+                  Ask AI Tutor in Chat
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- Floating mock watch demo video popup window -->
+  <div id="demoModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center;">
+    <div class="card-3d" style="width: 90%; max-width: 600px; padding: 25px; text-align: center;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3>EduMate AI Overview Demo</h3>
+        <button onclick="closeMockDemo()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);">&times;</button>
+      </div>
+      <div style="width: 100%; height: 300px; background-color: var(--bg-primary); border-radius: var(--radius-md); border: 2px solid var(--border-thick); display: flex; flex-direction: column; justify-content: center; align-items: center; margin-bottom: 20px;">
+        <i data-lucide="play-circle" style="font-size: 4rem; color: var(--color-sky); cursor: pointer;" onclick="playDemoAnimation()"></i>
+        <p style="font-weight: 700; margin-top: 10px;" id="demoStatusText">Click Play to see EduMate AI in Action</p>
+      </div>
+      <p style="font-size: 0.9rem; color: var(--text-muted);">See how our AI Teacher Copilot guides students step-by-step, keeps parents informed, and aggregates revision flags for teachers.</p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
