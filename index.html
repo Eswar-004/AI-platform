@@ -620,7 +620,7 @@
                     <input type="text" class="chat-text-input" placeholder="Ask anything... (e.g. 'Why is the sky blue?')" id="chatMessageInput" onkeydown="handleChatKeydown(event)">
                     
                     <!-- Send Button -->
-                    <button class="chat-icon-action" style="color: var(--color-sky);" onclick="sendChatMessage()">
+                    <button class="chat-icon-action" style="color: var(--color-sky);" onclick="sendChatMessage()" id="chatSendBtn">
                       <i data-lucide="send"></i>
                     </button>
                   </div>
@@ -673,7 +673,7 @@
                   </div>
                 </div>
 
-                <button class="btn-3d btn-3d-purple" onclick="generateStoryFromInput()">
+                <button class="btn-3d btn-3d-purple" onclick="generateStoryFromInput()" id="storyGenerateBtn">
                   <i data-lucide="sparkles"></i> Generate Interactive Story
                 </button>
               </div>
@@ -776,11 +776,11 @@
 
                 <div class="scan-results" id="scanResults">
                   <h3>🔍 Extracted Homework Problem</h3>
-                  <div class="ocr-block">
+                  <div class="ocr-block" id="homeworkOcrBlock">
                     "Question 5: Solve the equation 3x + 9 = 24. Show your working steps."
                   </div>
 
-                  <div class="scan-ai-explanation">
+                  <div class="scan-ai-explanation" id="homeworkExplanationBlock">
                     <h4><i data-lucide="sparkles"></i> Teacher Copilot Guidance</h4>
                     <p style="font-size: 0.95rem; margin-bottom: 12px; font-weight: 600;">Let's break this down together! The goal is to isolate the variable <strong>x</strong> on one side of the equals sign.</p>
                     
@@ -833,7 +833,7 @@
                 </div>
               </div>
 
-              <button class="btn-3d btn-3d-orange" onclick="startMockQuiz()">
+              <button class="btn-3d btn-3d-orange" onclick="startMockQuiz()" id="quizGenerateBtn">
                 Generate AI Quiz Now
               </button>
             </div>
@@ -1048,6 +1048,6 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

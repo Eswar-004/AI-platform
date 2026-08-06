@@ -10,6 +10,34 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
+// API INTEGRATION
+// ==========================================
+const API_BASE_URL = "http://localhost:5000/api/ai";
+
+async function callAiApi(prompt) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ prompt })
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    if (data.success === false) {
+      throw new Error(data.response || "Unable to contact AI server.");
+    }
+    return data.response;
+  } catch (error) {
+    console.error("Failed to fetch AI response:", error);
+    return "Unable to contact AI server.";
+  }
+}
+
+// ==========================================
 // 1. VIEW & NAVIGATION MANAGEMENT
 // ==========================================
 
@@ -102,43 +130,7 @@ let chatAttachment = null;
 let isChatMicActive = false;
 
 // Mock AI knowledge database for student questions
-const explainDatabase = {
-  'photosynthesis': {
-    default: `<p><strong>Photosynthesis</strong> is the process plants use to make their own food.</p>
-              <p>Plants take in <strong>carbon dioxide</strong> from the air, <strong>water</strong> from the soil, and absorb <strong>sunlight</strong> through chlorophyll (the green pigment in leaves).</p>
-              <p>They combine these ingredients to produce <strong>glucose (sugar)</strong> for energy and release <strong>oxygen</strong> back into the atmosphere for us to breathe!</p>`,
-    simpler: `<p>Think of leaves as tiny solar-powered kitchens! ☀️🍃</p>
-              <p>The plant gathers sunlight, water from its roots, and air. It cooks them together to make sweet plant food (sugar) and breathes out fresh oxygen for us!</p>`,
-    story: `<p>Once upon a time, a little green leaf named Libby wanted to bake a cake. 🍰</p>
-            <p>She got a cup of sunlight from the sun, drank water from the roots below, and caught carbon dioxide floating by. She mixed them up in her green chlorophyll oven, baked it, and created a yummy sugar energy cake. She was so happy she threw away some oxygen molecules as confetti!</p>`,
-    example: `<p>Imagine a solar-powered juice maker! 🍹</p>
-              <p>You pour in water (soil nutrients) and air, and leave the machine in the sun. The solar panel catches sunlight energy to blend it all up into a delicious sweet energy juice (glucose), while spitting out fresh air (oxygen) as waste!</p>`,
-    tamil: `<p><strong>ஒளிச்சேர்க்கை (Photosynthesis)</strong> என்பது தாவரங்கள் தங்களுக்கு தேவையான உணவை தயாரிக்கும் முறையாகும்.</p>
-            <p>தாவரங்கள் வேர்கள் மூலம் <strong>நீரையும்</strong>, இலைகள் மூலம் <strong>கார்பன் டை ஆக்சைடையும்</strong> உறிஞ்சி, <strong>சூரிய ஒளியின்</strong> உதவியுடன் தங்களுக்கு தேவையான சர்க்கரை சத்தை தயாரித்து <strong>ஆக்ஸிஜனை</strong> வெளியிடுகின்றன.</p>`
-  },
-  'evaporation': {
-    default: `<p><strong>Evaporation</strong> is the process of a liquid turning into gas.</p>
-              <p>When water is heated (like by the sun), the water molecules absorb thermal energy. They begin moving faster and faster until they break free from the liquid surface and float into the sky as invisible <strong>water vapor</strong>.</p>`,
-    simpler: `<p>When water gets warm, the tiny water drops get so excited and energetic that they turn invisible and float up into the air as vapor! 💧➡️💨</p>`,
-    story: `<p>Meet Splash, a tiny water drop sitting in a puddle. ☀️</p>
-            <p>The sun gave Splash a big, warm hug. Splash started jumping up and down, feeling warmer and lighter. Before he knew it, he sprouted invisible wings of vapor and flew high up into the clouds!</p>`,
-    example: `<p>Think about hanging wet clothes outside. The sun heats up the water trapped in the shirts. The water turns into invisible vapor and escapes into the air, leaving your shirts dry! 👕☀️</p>`,
-    tamil: `<p><strong>நீர் ஆவியாதல் (Evaporation)</strong> என்பது நீர் திரவ நிலையிலிருந்து வாயு நிலைக்கு (நீராவி) மாறும் நிகழ்வு ஆகும்.</p>
-            <p>சூரிய வெப்பம் நீரை சூடாக்கும் போது, நீர் மூலக்கூறுகள் வேகமாக இயங்கி மேல்நோக்கி காற்றில் பரவுகின்றன.</p>`
-  },
-  'fractions': {
-    default: `<p>A <strong>fraction</strong> represents a part of a whole.</p>
-              <p>It consists of a <strong>numerator</strong> (the top number, representing how many parts we have) and a <strong>denominator</strong> (the bottom number, representing how many total equal parts make the whole).</p>
-              <p>For example, if we divide a pizza into 4 parts and eat 1 slice, we consumed <strong>1/4</strong> of the pizza.</p>`,
-    simpler: `<p>Fractions are just equal shares of something! 🍕</p>
-              <p>The bottom number tells you how many slices we cut the pizza into. The top number tells you how many slices you get to eat.</p>`,
-    story: `<p>Pip the Penguin had one giant chocolate bar. 🍫</p>
-            <p>He wanted to share it fairly with three of his friends. So he cut it into 4 equal blocks. Each penguin got exactly 1 block. Pip wrote this down in his ledger: "We each got 1 out of 4 slices, or 1/4 of the treasure!"</p>`,
-    example: `<p>If you have a set of 8 apples and 2 of them are green, the green apples make up <strong>2/8</strong> of the total group. You can simplify this fraction to <strong>1/4</strong>!</p>`,
-    tamil: `<p><strong>பின்னங்கள் (Fractions)</strong> என்பது ஒரு முழு பொருளின் பகுதியை குறிக்கும்.</p>
-            <p>மேலே உள்ள எண் <strong>தொகுதி (Numerator)</strong> - நாம் எடுத்த பகுதி; கீழே உள்ள எண் <strong>பகுதி (Denominator)</strong> - முழு பொருளின் மொத்த சம பங்குகள் ஆகும்.</p>`
-  }
-};
+
 
 function appendChatMessage(sender, content, key = null) {
   const history = document.getElementById('chatHistory');
@@ -155,10 +147,15 @@ function appendChatMessage(sender, content, key = null) {
 
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
-  bubble.innerHTML = content;
 
-  // If this is an AI message explaining a concept, append "Explain Again" actions
-  if (sender === 'ai' && key && explainDatabase[key]) {
+  // Wrap explanation text content in its own div to make re-explaining easier
+  const contentArea = document.createElement('div');
+  contentArea.className = 'chat-explanation-content';
+  contentArea.innerHTML = content;
+  bubble.appendChild(contentArea);
+
+  // If this is an AI message, always append "Explain Again" actions
+  if (sender === 'ai') {
     const actions = document.createElement('div');
     actions.className = 'explain-again-wrapper';
     actions.innerHTML = `
@@ -198,31 +195,66 @@ function appendChatMessage(sender, content, key = null) {
 }
 
 // Modify existing bubble text when clicking Explain Simpler / Story / etc.
-function changeExplanationStyle(conceptKey, style, buttonEl) {
+async function changeExplanationStyle(conceptKey, style, buttonEl) {
   const bubble = buttonEl.closest('.msg-bubble');
-  const textDiv = bubble.querySelector('p') ? bubble : null;
-  if (!textDiv) return;
-
-  // Retrieve styled concept explanation
-  const newContent = explainDatabase[conceptKey][style];
-  if (newContent) {
-    // Keep voice widget and action buttons, swap text content
-    const voiceWidget = bubble.querySelector('.chat-voice-widget');
-    const actionsWidget = bubble.querySelector('.explain-again-wrapper');
-    
-    bubble.innerHTML = '';
-    if (voiceWidget) bubble.appendChild(voiceWidget);
-    
-    const contentWrap = document.createElement('div');
-    contentWrap.innerHTML = newContent;
-    bubble.appendChild(contentWrap);
-    
-    if (actionsWidget) bubble.appendChild(actionsWidget);
-    
-    // Add micro-animation highlight
-    bubble.style.animation = 'none';
-    bubble.offsetHeight; /* trigger reflow */
-    bubble.style.animation = 'bounceIn 0.4s';
+  
+  // Extract original text content, excluding widgets
+  const tempDiv = bubble.cloneNode(true);
+  const voice = tempDiv.querySelector('.chat-voice-widget');
+  if (voice) voice.remove();
+  const actions = tempDiv.querySelector('.explain-again-wrapper');
+  if (actions) actions.remove();
+  
+  const originalText = tempDiv.textContent.trim();
+  
+  // Disable all buttons while loading
+  const buttons = bubble.querySelectorAll('.btn-explain-style');
+  buttons.forEach(btn => btn.disabled = true);
+  
+  let prompt = "";
+  if (style === 'simpler') {
+    prompt = `Explain the following text in simpler, child-friendly terms for a Grade 6 student. Keep it short and use simple language:\n\n"${originalText}"`;
+  } else if (style === 'example') {
+    prompt = `Provide a simple, clear, real-world example to illustrate the following concept for a Grade 6 student:\n\n"${originalText}"`;
+  } else if (style === 'story') {
+    prompt = `Explain the following concept as a very short, engaging story/fable suitable for a Grade 6 student:\n\n"${originalText}"`;
+  } else if (style === 'tamil') {
+    prompt = `Translate and explain the following concept in clear, simple Tamil (using Tamil script) for a Grade 6 student:\n\n"${originalText}"`;
+  }
+  
+  const contentArea = bubble.querySelector('.chat-explanation-content') || document.createElement('div');
+  contentArea.className = 'chat-explanation-content';
+  contentArea.innerHTML = "<p><em>Thinking of a new explanation style... ✨</em></p>";
+  
+  const voiceWidget = bubble.querySelector('.chat-voice-widget');
+  const actionsWidget = bubble.querySelector('.explain-again-wrapper');
+  
+  bubble.innerHTML = '';
+  if (voiceWidget) bubble.appendChild(voiceWidget);
+  bubble.appendChild(contentArea);
+  if (actionsWidget) bubble.appendChild(actionsWidget);
+  
+  const newText = await callAiApi(prompt);
+  
+  // Format response to HTML paragraphs if needed
+  let formattedResponse = newText;
+  if (!newText.trim().startsWith('<')) {
+    formattedResponse = newText.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+  }
+  
+  contentArea.innerHTML = formattedResponse;
+  
+  // Re-enable buttons
+  const newButtons = bubble.querySelectorAll('.btn-explain-style');
+  newButtons.forEach(btn => btn.disabled = false);
+  
+  // Add micro-animation highlight
+  bubble.style.animation = 'none';
+  bubble.offsetHeight; /* trigger reflow */
+  bubble.style.animation = 'bounceIn 0.4s';
+  
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
   }
 }
 
@@ -266,8 +298,10 @@ function playSpeechBubble(button) {
 }
 
 // User types a message
-function sendChatMessage() {
+async function sendChatMessage() {
   const input = document.getElementById('chatMessageInput');
+  const sendBtn = document.getElementById('chatSendBtn');
+  const micBtn = document.getElementById('chatMicBtn');
   const text = input.value.trim();
   
   if (!text && !chatAttachment) return;
@@ -280,8 +314,12 @@ function sendChatMessage() {
     userMessageHTML += `<p>${text}</p>`;
   }
 
-  // Clear input fields
+  // Clear input fields and disable them while loading
   input.value = '';
+  input.disabled = true;
+  if (sendBtn) sendBtn.disabled = true;
+  if (micBtn) micBtn.disabled = true;
+
   const fileDetails = chatAttachment;
   clearChatAttachment();
 
@@ -291,56 +329,50 @@ function sendChatMessage() {
   // Show AI typing simulation
   showAiTypingIndicator();
 
-  // Generate response depending on key phrase matches
-  setTimeout(() => {
-    removeAiTypingIndicator();
-    
-    let aiResponse = '';
-    let conceptKey = null;
+  // Build the prompt for AI
+  let promptText = "";
+  if (fileDetails) {
+    promptText = `The student uploaded a homework file named "${fileDetails.name}". Help explain the homework or solve the concepts described in it step-by-step for a Grade 6 student. Text query: "${text || 'Explain the worksheet and solve the problem'}"`;
+  } else {
+    promptText = `You are a friendly AI Teacher Copilot for a Grade 6 student. Answer the following question or explain the concept clearly, step-by-step, in a friendly tone: "${text}"`;
+  }
 
-    const lowerText = text.toLowerCase();
-    
-    if (fileDetails) {
-      // Mock homework image analysis response
-      aiResponse = `<p>I've scanned the homework file <strong>${fileDetails.name}</strong>!</p>
-                    <p>I found the algebra equation: <strong>3x + 9 = 24</strong>.</p>
-                    <p>Let's solve it together step-by-step:
-                    <ol>
-                      <li>Subtract 9 from both sides: <strong>3x = 15</strong>.</li>
-                      <li>Divide by 3: <strong>x = 5</strong>.</li>
-                    </ol>
-                    How does that look? Would you like me to explain the steps in Tamil or with diagrams?</p>`;
-      conceptKey = 'fractions'; // triggers standard math explanations
-    } else if (lowerText.includes('photo') || lowerText.includes('breath') || lowerText.includes('leaf') || lowerText.includes('plant')) {
-      conceptKey = 'photosynthesis';
-      aiResponse = explainDatabase.photosynthesis.default;
-    } else if (lowerText.includes('evap') || lowerText.includes('water') || lowerText.includes('rain') || lowerText.includes('cloud')) {
-      conceptKey = 'evaporation';
-      aiResponse = explainDatabase.evaporation.default;
-    } else if (lowerText.includes('fraction') || lowerText.includes('divide') || lowerText.includes('math') || lowerText.includes('slice')) {
-      conceptKey = 'fractions';
-      aiResponse = explainDatabase.fractions.default;
-    } else {
-      // Default fallback helper dialogue
-      aiResponse = `<p>Interesting topic! I don't have this lesson card pre-loaded, but I can break it down. Are we talking about a science concept, a math formula, or language exercises?</p>
-                    <p>Try searching: <strong>"Photosynthesis"</strong> or <strong>"Dividing Fractions"</strong> for a full 3D interactive explanation widget!</p>`;
-    }
+  const aiResponse = await callAiApi(promptText);
 
-    appendChatMessage('ai', aiResponse, conceptKey);
-    
-    // Add follow-up suggest tags
-    if (conceptKey === 'photosynthesis') {
-      appendFollowUps([
-        'How does carbon dioxide get inside the leaf?',
-        'Tell me the photosynthesis story again'
-      ]);
-    } else if (conceptKey === 'evaporation') {
-      appendFollowUps([
-        'Explain condensation next',
-        'What happens when water vapor gets cold?'
-      ]);
-    }
-  }, 1500);
+  removeAiTypingIndicator();
+
+  // Re-enable inputs
+  input.disabled = false;
+  if (sendBtn) sendBtn.disabled = false;
+  if (micBtn) micBtn.disabled = false;
+  input.focus();
+
+  // Format AI response to HTML paragraphs if not already HTML
+  let formattedResponse = aiResponse;
+  if (!aiResponse.trim().startsWith('<')) {
+    formattedResponse = aiResponse.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+  }
+
+  // Determine a simulated concept key for follow-ups
+  const conceptKey = text.toLowerCase().includes('photo') ? 'photosynthesis' : 
+                     (text.toLowerCase().includes('evap') ? 'evaporation' : 'general');
+
+  appendChatMessage('ai', formattedResponse, conceptKey);
+  
+  // Generate context-aware follow-up suggestions
+  const lowerResponse = aiResponse.toLowerCase();
+  const suggestions = [];
+  if (lowerResponse.includes('photosynthesis') || lowerResponse.includes('plant') || lowerResponse.includes('leaf')) {
+    suggestions.push('How does carbon dioxide get inside the leaf?', 'Tell me the photosynthesis story again');
+  } else if (lowerResponse.includes('evaporation') || lowerResponse.includes('water') || lowerResponse.includes('vapor')) {
+    suggestions.push('Explain condensation next', 'What happens when water vapor gets cold?');
+  } else if (lowerResponse.includes('fraction') || lowerResponse.includes('divide') || lowerResponse.includes('math')) {
+    suggestions.push('Explain dividing fractions with a pizza slice example', 'Show me another fraction question');
+  } else {
+    suggestions.push('Explain this topic in simpler terms', 'Give me a real-world example of this');
+  }
+  
+  appendFollowUps(suggestions);
 }
 
 function showAiTypingIndicator() {
@@ -450,15 +482,21 @@ function toggleChatMic() {
 // 4. STORY MODE INTERACTIVE GENERATOR
 // ==========================================
 
-function generateStoryFromInput() {
-  const inputVal = document.getElementById('storyInput').value.trim();
+async function generateStoryFromInput() {
+  const inputEl = document.getElementById('storyInput');
+  const inputVal = inputEl.value.trim();
   if (!inputVal) return;
 
+  const generateBtn = document.getElementById('storyGenerateBtn');
   const placeholder = document.getElementById('storyPlaceholder');
   const contentBox = document.getElementById('storyContentBox');
   const activeTitle = document.getElementById('activeStoryTitle');
   const textContainer = document.getElementById('storyTextContainer');
   const illustration = document.getElementById('storyIllustration');
+
+  // Disable button and input
+  if (generateBtn) generateBtn.disabled = true;
+  inputEl.disabled = true;
 
   placeholder.style.display = 'none';
   contentBox.classList.add('active');
@@ -474,13 +512,27 @@ function generateStoryFromInput() {
   illustration.innerHTML = `<i data-lucide="${iconName}"></i>`;
   if (typeof lucide !== 'undefined') lucide.createIcons();
 
-  // Story paragraphs to animate
-  const paragraphs = [
-    `Once upon a time, in a busy neighborhood textbook, lived a small, curious character named **Pip**. Pip was always wondering how ${inputVal} worked.`,
-    `One day, Pip woke up to find a magical map. It showed that to understand ${inputVal}, Pip needed to look closely at molecular building blocks. Suddenly, a friendly robot floated into view, offering a glowing magnifying glass.`,
-    `"Look at how heat energizes the particles!" the robot explained. Pip peered through the glass and saw molecules starting to dance and jump, breaking free from their standard bonds.`,
-    `Pip smiled. "Ah! So that's how it transitions states. It's not magic, it's just science!" From that day forward, Pip taught all the other textbook characters the secrets of ${inputVal}.`
-  ];
+  const promptText = `Write an engaging, illustrated-style short story explaining "${inputVal}" for a Grade 6 student.
+Break the story into exactly 4 short paragraphs. Use characters, adventure, or analogy to explain the concept.
+Separate each paragraph with a line containing only "---".
+Do not output any introductory or summary text, just the 4 paragraphs separated by "---".`;
+
+  const aiStory = await callAiApi(promptText);
+
+  // Split story into paragraphs
+  let paragraphs = aiStory.split('---').map(p => p.trim()).filter(p => p.length > 0);
+  if (paragraphs.length < 2) {
+    paragraphs = aiStory.split('\n\n').map(p => p.trim()).filter(p => p.length > 0);
+  }
+  
+  // Limit to at most 4 paragraphs to keep layout clean
+  if (paragraphs.length > 4) {
+    paragraphs = paragraphs.slice(0, 4);
+  }
+
+  // Re-enable button and input
+  if (generateBtn) generateBtn.disabled = false;
+  inputEl.disabled = false;
 
   textContainer.innerHTML = '';
   
@@ -489,10 +541,10 @@ function generateStoryFromInput() {
     setTimeout(() => {
       const p = document.createElement('p');
       p.className = 'story-paragraph';
-      p.innerHTML = pText;
+      p.innerHTML = pText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
       textContainer.appendChild(p);
       textContainer.scrollTop = textContainer.scrollHeight;
-    }, index * 2000);
+    }, index * 1500);
   });
 }
 
@@ -503,6 +555,8 @@ function generateStoryFromInput() {
 
 let isVoiceActive = false;
 let voiceTimer = null;
+let recognitionInstance = null;
+let currentUtterance = null;
 
 function toggleVoiceSession() {
   const startBtn = document.getElementById('voiceStartBtn');
@@ -517,13 +571,8 @@ function toggleVoiceSession() {
   if (isVoiceActive) {
     startBtn.innerHTML = `<i data-lucide="square"></i> Stop Session`;
     startBtn.className = "btn-3d btn-3d-orange";
-    statusTitle.textContent = "EduMate is listening...";
-    statusSub.textContent = "Speak into your microphone.";
-    waveform.classList.add('listening');
-    avatar.textContent = '👂';
-    subtitle.innerHTML = "<em>(Listening for your voice input...)</em>";
-
-    // Simulate animated waveform levels
+    
+    // Waveform visual bars animation
     const bars = waveform.querySelectorAll('span');
     voiceTimer = setInterval(() => {
       bars.forEach(bar => {
@@ -531,25 +580,11 @@ function toggleVoiceSession() {
       });
     }, 100);
 
-    // Mock Dialogue Flow
-    setTimeout(() => {
-      if (isVoiceActive) {
-        subtitle.innerHTML = "<strong>You:</strong> Explain photosynthesis, please.";
-        avatar.textContent = '🤖';
-        avatar.classList.add('speaking');
-        statusTitle.textContent = "EduMate is speaking...";
-        statusSub.textContent = "Playing explanation audio.";
-        waveform.classList.remove('listening');
-        waveform.classList.add('speaking');
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
 
-        setTimeout(() => {
-          if (isVoiceActive) {
-            subtitle.innerHTML = "<strong>AI:</strong> Photosynthesis is how plants bake their food! They take in sunlight, water, and air to make sugars. Do you want me to explain this with a story or simpler?";
-          }
-        }, 1500);
-      }
-    }, 4000);
-
+    startListeningCycle();
   } else {
     // Reset to idle
     startBtn.innerHTML = `<i data-lucide="play"></i> Start Speaking`;
@@ -564,9 +599,149 @@ function toggleVoiceSession() {
     clearInterval(voiceTimer);
     const bars = waveform.querySelectorAll('span');
     bars.forEach(bar => bar.style.height = '8px');
+
+    if (recognitionInstance) {
+      recognitionInstance.abort();
+      recognitionInstance = null;
+    }
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
   }
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function startListeningCycle() {
+  if (!isVoiceActive) return;
+
+  const statusTitle = document.getElementById('voiceStatusTitle');
+  const statusSub = document.getElementById('voiceStatusSub');
+  const waveform = document.getElementById('voiceWaveform');
+  const avatar = document.getElementById('voiceAvatar');
+  const subtitle = document.getElementById('voiceSubtitleContainer');
+
+  statusTitle.textContent = "EduMate is listening...";
+  statusSub.textContent = "Speak into your microphone.";
+  waveform.classList.add('listening');
+  waveform.classList.remove('speaking');
+  avatar.textContent = '👂';
+  avatar.classList.remove('speaking');
+  subtitle.innerHTML = "<em>(Listening for your voice input...)</em>";
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognition) {
+    if (recognitionInstance) {
+      recognitionInstance.abort();
+    }
+    recognitionInstance = new SpeechRecognition();
+    recognitionInstance.continuous = false;
+    recognitionInstance.interimResults = false;
+    recognitionInstance.lang = 'en-US';
+
+    let gotResult = false;
+
+    recognitionInstance.onresult = async (event) => {
+      gotResult = true;
+      const spokenText = event.results[0][0].transcript;
+      subtitle.innerHTML = `<strong>You:</strong> ${spokenText}`;
+      recognitionInstance.stop();
+      await processVoiceQuestion(spokenText);
+    };
+
+    recognitionInstance.onerror = (err) => {
+      console.warn("Speech recognition error:", err);
+      if (!gotResult) {
+        fallbackVoiceSimulation();
+      }
+    };
+
+    recognitionInstance.onend = () => {
+      if (!gotResult && isVoiceActive) {
+        fallbackVoiceSimulation();
+      }
+    };
+
+    try {
+      recognitionInstance.start();
+    } catch (e) {
+      console.error("Failed to start speech recognition:", e);
+      fallbackVoiceSimulation();
+    }
+  } else {
+    fallbackVoiceSimulation();
+  }
+}
+
+function fallbackVoiceSimulation() {
+  if (!isVoiceActive) return;
+  const subtitle = document.getElementById('voiceSubtitleContainer');
+  subtitle.innerHTML = "<em>(Mic inactive. Simulating question: 'Explain photosynthesis, please.')</em>";
+  
+  setTimeout(async () => {
+    if (isVoiceActive) {
+      subtitle.innerHTML = "<strong>You:</strong> Explain photosynthesis, please.";
+      await processVoiceQuestion("Explain photosynthesis in simple terms for a student");
+    }
+  }, 2000);
+}
+
+async function processVoiceQuestion(questionText) {
+  if (!isVoiceActive) return;
+
+  const statusTitle = document.getElementById('voiceStatusTitle');
+  const statusSub = document.getElementById('voiceStatusSub');
+  const waveform = document.getElementById('voiceWaveform');
+  const avatar = document.getElementById('voiceAvatar');
+  const subtitle = document.getElementById('voiceSubtitleContainer');
+
+  statusTitle.textContent = "EduMate is thinking...";
+  statusSub.textContent = "Fetching explanation from AI.";
+  waveform.classList.remove('listening');
+  
+  const aiResponse = await callAiApi(`Keep your answer short, clear and conversational (under 3 sentences) suitable for reading aloud to a Grade 6 student. Question: ${questionText}`);
+  
+  if (!isVoiceActive) return;
+
+  const cleanSpeechText = aiResponse.replace(/[*#_\`\[\]()]/g, '');
+
+  subtitle.innerHTML = `<strong>You:</strong> ${questionText}<br><strong>AI:</strong> ${aiResponse}`;
+  
+  statusTitle.textContent = "EduMate is speaking...";
+  statusSub.textContent = "Playing explanation audio.";
+  waveform.classList.add('speaking');
+  avatar.textContent = '🤖';
+  avatar.classList.add('speaking');
+
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+    currentUtterance = new SpeechSynthesisUtterance(cleanSpeechText);
+    
+    currentUtterance.onend = () => {
+      if (isVoiceActive) {
+        setTimeout(() => {
+          startListeningCycle();
+        }, 1000);
+      }
+    };
+    
+    currentUtterance.onerror = (e) => {
+      console.error("Speech Synthesis Error:", e);
+      if (isVoiceActive) {
+        setTimeout(() => {
+          startListeningCycle();
+        }, 1000);
+      }
+    };
+
+    window.speechSynthesis.speak(currentUtterance);
+  } else {
+    setTimeout(() => {
+      if (isVoiceActive) {
+        startListeningCycle();
+      }
+    }, 5000);
+  }
 }
 
 
@@ -591,22 +766,68 @@ function mockHomeworkScan() {
   runHomeworkScan();
 }
 
-function runHomeworkScan() {
+async function runHomeworkScan() {
   const placeholder = document.getElementById('scanPlaceholder');
   const results = document.getElementById('scanResults');
   const scanImg = document.getElementById('scanUploadedImage');
   const laser = document.getElementById('scanLaserLine');
+  const ocrBlock = document.getElementById('homeworkOcrBlock');
+  const explanationBlock = document.getElementById('homeworkExplanationBlock');
 
   placeholder.style.display = 'none';
   results.style.display = 'none';
   scanImg.style.display = 'block';
   laser.style.display = 'block';
 
-  // Complete scanning after 2.5 seconds
-  setTimeout(() => {
-    laser.style.display = 'none';
-    results.classList.add('active');
-  }, 2500);
+  // Get problem details
+  let filename = "";
+  const fileInput = document.getElementById('homeworkFileInput');
+  if (fileInput && fileInput.files && fileInput.files[0]) {
+    filename = fileInput.files[0].name;
+  }
+
+  let problemText = "Question 5: Solve the equation 3x + 9 = 24. Show your working steps.";
+  let promptText = "";
+
+  if (filename) {
+    problemText = `Problem extracted from worksheet: ${filename}`;
+    promptText = `A student uploaded a worksheet file named "${filename}". Identify a typical Grade 6 algebra or science homework problem that matches this context. Provide a detailed, step-by-step tutor explanation for it. Return ONLY the HTML contents (paragraphs, steps, code blocks) describing how to solve it. Do not include markdown wraps or styling details.`;
+  } else {
+    promptText = `Solve the equation "3x + 9 = 24" step-by-step as a friendly AI tutor. Provide clear instruction for each step. Return the response as simple HTML (using <h4> for headers, <p> for paragraphs, <ol> and <li> for steps, and <code> for math formulas). Do not use markdown wraps.`;
+  }
+
+  const apiPromise = callAiApi(promptText);
+  const timerPromise = new Promise(resolve => setTimeout(resolve, 2500));
+
+  const [aiResponse] = await Promise.all([apiPromise, timerPromise]);
+
+  laser.style.display = 'none';
+  results.style.display = 'block';
+  results.classList.add('active');
+
+  ocrBlock.textContent = `"${problemText}"`;
+  
+  let formattedExplanation = aiResponse;
+  if (!aiResponse.trim().startsWith('<')) {
+    formattedExplanation = `<h4><i data-lucide="sparkles"></i> Teacher Copilot Guidance</h4>` + 
+      aiResponse.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+  } else {
+    if (!aiResponse.includes('Teacher Copilot Guidance') && !aiResponse.includes('<h4>')) {
+      formattedExplanation = `<h4><i data-lucide="sparkles"></i> Teacher Copilot Guidance</h4>` + aiResponse;
+    }
+  }
+
+  const actionButtonsHTML = `
+    <div style="margin-top: 15px; display: flex; gap: 10px;">
+      <button class="btn-3d btn-3d-sky" style="padding: 6px 12px; font-size: 0.8rem;" onclick="switchTab('chat'); quickStartChat('Explain step 1 of equation 3x+9=24 again in Tamil')">Explain Step 1 in Tamil</button>
+      <button class="btn-3d btn-3d-white" style="padding: 6px 12px; font-size: 0.8rem;" onclick="switchTab('chat'); quickStartChat('Give me another similar algebra problem to solve')">Practice Similar Problem</button>
+    </div>
+  `;
+  explanationBlock.innerHTML = formattedExplanation + actionButtonsHTML;
+
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+  }
 }
 
 
@@ -614,42 +835,7 @@ function runHomeworkScan() {
 // 7. AI QUIZ ENGINE
 // ==========================================
 
-const quizQuestions = {
-  'Science - Evaporation': [
-    {
-      q: "What provides the main heat energy source for the Earth's evaporation cycles?",
-      options: ["A) The core temperature", "B) The Sun", "C) Wind patterns", "D) Ocean waves"],
-      correct: 1,
-      explain: "The Sun is the driving heat force that warms the surface water of rivers, lakes, and oceans, turning it into vapor."
-    },
-    {
-      q: "During evaporation, water changes from a ______ to a ______.",
-      options: ["A) Liquid to Gas", "B) Gas to Solid", "C) Solid to Liquid", "D) Liquid to Solid"],
-      correct: 0,
-      explain: "Evaporation is the transition of matter from a liquid state into a gaseous state (vapor)."
-    },
-    {
-      q: "What happens to water molecules as they get warmer?",
-      options: ["A) They slow down", "B) They clump closer together", "C) They move faster and spread apart", "D) They dissolve entirely"],
-      correct: 2,
-      explain: "Thermal energy makes molecules vibrate and travel faster, allowing them to bounce away from one another."
-    }
-  ],
-  'Math - Fractions': [
-    {
-      q: "What is the result when you divide 1/2 by 2?",
-      options: ["A) 1", "B) 1/4", "C) 1/3", "D) 2/2"],
-      correct: 1,
-      explain: "Dividing a half in two leaves you with four equal shares of the whole, which is 1/4."
-    },
-    {
-      q: "In the fraction 3/8, what is the number 8 called?",
-      options: ["A) Numerator", "B) Product", "C) Quotient", "D) Denominator"],
-      correct: 3,
-      explain: "The bottom number is the denominator, indicating the total equal parts that make up a whole."
-    }
-  ]
-};
+
 
 let currentQuizTopic = '';
 let currentQuizDifficulty = '';
@@ -668,22 +854,67 @@ function resetQuizView() {
   document.getElementById('quizResultsScreen').style.display = 'none';
 }
 
-function startMockQuiz() {
+async function startMockQuiz() {
   const topicSelect = document.getElementById('quizTopic');
   const diffSelect = document.getElementById('quizDifficulty');
+  const generateBtn = document.getElementById('quizGenerateBtn');
   
   currentQuizTopic = topicSelect.value;
   currentQuizDifficulty = diffSelect.value;
 
-  activeQuestions = quizQuestions[currentQuizTopic] || quizQuestions['Science - Evaporation'];
-  
-  quizIndex = 0;
-  quizScore = 0;
+  if (generateBtn) {
+    generateBtn.disabled = true;
+    generateBtn.textContent = "Generating AI Quiz... 🧠";
+  }
 
-  document.getElementById('quizWelcomeScreen').style.display = 'none';
-  document.getElementById('quizActiveScreen').style.display = 'block';
-  
-  showQuizQuestion();
+  const promptText = `Generate a 3-question multiple choice quiz on the topic "${currentQuizTopic}" with difficulty "${currentQuizDifficulty}" for a Grade 6 student.
+Return the response strictly as a JSON object matching this schema:
+{
+  "questions": [
+    {
+      "q": "Question text?",
+      "options": ["A) option A", "B) option B", "C) option C", "D) option D"],
+      "correct": 0,
+      "explain": "Explanation text"
+    }
+  ]
+}
+Ensure there are exactly 3 questions. The 'correct' field must be the index (0, 1, 2, or 3) of the correct answer. Return ONLY the JSON object. Do not include markdown formatting, backticks, or extra text.`;
+
+  try {
+    const responseText = await callAiApi(promptText);
+    if (responseText === "Unable to contact AI server.") {
+      throw new Error("Unable to contact AI server.");
+    }
+    
+    let cleanJsonText = responseText.trim();
+    if (cleanJsonText.startsWith("```")) {
+      cleanJsonText = cleanJsonText.replace(/^```(json)?/, "").replace(/```$/, "").trim();
+    }
+    
+    const parsedData = JSON.parse(cleanJsonText);
+    if (parsedData && Array.isArray(parsedData.questions) && parsedData.questions.length > 0) {
+      activeQuestions = parsedData.questions;
+    } else {
+      throw new Error("Invalid questions array in parsed JSON");
+    }
+
+    quizIndex = 0;
+    quizScore = 0;
+
+    document.getElementById('quizWelcomeScreen').style.display = 'none';
+    document.getElementById('quizActiveScreen').style.display = 'block';
+    
+    showQuizQuestion();
+  } catch (e) {
+    console.error("Failed to generate custom AI Quiz:", e);
+    alert("Unable to contact AI server.");
+  } finally {
+    if (generateBtn) {
+      generateBtn.disabled = false;
+      generateBtn.textContent = "Generate AI Quiz Now";
+    }
+  }
 }
 
 function showQuizQuestion() {
