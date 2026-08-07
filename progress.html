@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Learning Progress Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* Simple progress bar styling */
+    .progress-bar {
+      width: 100%;
+      background-color: var(--color-sky-light);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      height: 12px;
+      margin-top: 4px;
+    }
+    .progress-bar-inner {
+      height: 100%;
+      background-color: var(--color-sky);
+    }
+    .stat-card {
+      background-color: var(--bg-white);
+      border: 2px solid var(--border-thick);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+      flex: 1;
+    }
+    .stat-card h4 {
+      margin: 0 0 6px 0;
+      font-size: 1rem;
+    }
+    .stat-card p {
+      margin: 0;
+      font-weight: 600;
+    }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+    }
+    .card-3d {
+      background-color: var(--bg-white);
+      border: 2px solid var(--border-thick);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 var(--border-3d-thickness) 0 var(--border-thick);
+      padding: 24px;
+    }
+    .badge-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .badge-list li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .heatmap {
+      display: grid;
+      grid-template-columns: repeat(7, 14px);
+      gap: 3px;
+    }
+    .heatmap div {
+      width: 14px;
+      height: 14px;
+      background-color: var(--color-sky-light);
+    }
+  </style>
+</head>
+<body>
+  <header class="dashboard-header">
+    <h2>Progress Dashboard</h2>
+  </header>
+  <main class="section-container">
+    <!-- Summary Stats Row -->
+    <div class="two-col" style="margin-bottom:30px;">
+      <div class="stat-card"><h4>🔥 Streak</h4><p>5 Days</p></div>
+      <div class="stat-card"><h4>⏱ Total Study Time</h4><p>2.4h</p></div>
+      <div class="stat-card"><h4>🎯 Completion Rate</h4><p>90%</p></div>
+      <div class="stat-card"><h4>🏆 Badges Earned</h4><p>8 Badges</p></div>
+      <div class="stat-card"><h4>🧠 Overall Score</h4><p>82/100</p></div>
+    </div>
+
+    <!-- Two‑Column Row: Weekly Study Growth & Subject Progress -->
+    <div class="two-col" style="margin-bottom:30px;">
+      <div class="card-3d">
+        <h3>Weekly Study Growth</h3>
+        <!-- Placeholder bar chart (replace with chart library later) -->
+        <svg width="100%" height="120">
+          <rect x="10" y="80" width="30" height="30" fill="var(--color-sky)"/>
+          <rect x="55" y="60" width="30" height="50" fill="var(--color-sky)"/>
+          <rect x="100" y="70" width="30" height="40" fill="var(--color-sky)"/>
+          <rect x="145" y="50" width="30" height="60" fill="var(--color-sky)"/>
+          <rect x="190" y="30" width="30" height="80" fill="var(--color-sky)"/>
+          <rect x="235" y="55" width="30" height="55" fill="var(--color-sky)"/>
+          <rect x="280" y="70" width="30" height="40" fill="var(--color-sky)"/>
+        </svg>
+      </div>
+      <div class="card-3d">
+        <h3>Subject Progress</h3>
+        <ul class="badge-list">
+          <li>Maths <div class="progress-bar"><div class="progress-bar-inner" style="width:72%"></div></div></li>
+          <li>Science <div class="progress-bar"><div class="progress-bar-inner" style="width:88%"></div></div></li>
+          <li>English <div class="progress-bar"><div class="progress-bar-inner" style="width:76%"></div></div></li>
+          <li>Tamil <div class="progress-bar"><div class="progress-bar-inner" style="width:84%"></div></div></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Topics That Need Attention -->
+    <div class="card-3d" style="margin-bottom:30px;">
+      <h3>Topics That Need Attention</h3>
+      <ul class="badge-list">
+        <li>Dividing Fractions – 40% <button class="btn-3d btn-3d-sky" style="margin-left:auto;">Practice Now</button></li>
+        <li>Past Tense – 65% <button class="btn-3d btn-3d-sky" style="margin-left:auto;">Practice Now</button></li>
+      </ul>
+    </div>
+
+    <!-- AI Learning Coach -->
+    <div class="card-3d" style="background-color: var(--color-sky-light); margin-bottom:30px;">
+      <h3>AI Learning Coach</h3>
+      <p>Your Science performance improved by 14%. Your next focus should be Dividing Fractions.</p>
+      <button class="btn-3d btn-3d-purple" style="margin-top:10px;">Start Recommended Learning</button>
+    </div>
+
+    <!-- Two‑Column Row: Weekly Goals & Achievements -->
+    <div class="two-col" style="margin-bottom:30px;">
+      <div class="card-3d">
+        <h3>Weekly Goals</h3>
+        <p>Study
+          <div class="progress-bar"><div class="progress-bar-inner" style="width:80%"></div></div>
+        </p>
+        <p>Quizzes
+          <div class="progress-bar"><div class="progress-bar-inner" style="width:60%"></div></div>
+        </p>
+        <p>Concepts
+          <div class="progress-bar"><div class="progress-bar-inner" style="width:100%"></div></div>
+        </p>
+      </div>
+      <div class="card-3d">
+        <h3>Achievements</h3>
+        <ul class="badge-list">
+          <li>🔥 5 Day Streak</li>
+          <li>🧠 Science Master</li>
+          <li>📚 Quiz Champion</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Learning Activity Calendar -->
+    <div class="card-3d" style="margin-bottom:30px;">
+      <h3>Learning Activity Calendar</h3>
+      <div class="heatmap">
+        <!-- 4 weeks x 7 days mockup -->
+        <div></div><div></div><div style="background-color: var(--color-sky);"></div><div></div><div style="background-color: var(--color-sky);"></div><div></div><div></div>
+        <div></div><div style="background-color: var(--color-sky);"></div><div></div><div></div><div></div><div></div><div></div>
+        <div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+        <div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+      </div>
+    </div>
+
+    <!-- Your Next Best Action -->
+    <div class="card-3d" style="background-color: var(--color-orange-light); text-align:center;">
+      <h3>Your Next Best Action</h3>
+      <p>Practice Dividing Fractions for 10 minutes</p>
+      <button class="btn-3d btn-3d-orange" style="margin-top:10px;">Start Now →</button>
+    </div>
+  </main>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

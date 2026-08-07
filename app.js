@@ -484,6 +484,8 @@ function toggleChatMic() {
 
 async function generateStoryFromInput() {
   const inputEl = document.getElementById('storyInput');
+  const gradeSelect = document.getElementById('gradeSelect');
+  const selectedGrade = gradeSelect ? parseInt(gradeSelect.value) : 6;
   const inputVal = inputEl.value.trim();
   if (!inputVal) return;
 
@@ -512,7 +514,19 @@ async function generateStoryFromInput() {
   illustration.innerHTML = `<i data-lucide="${iconName}"></i>`;
   if (typeof lucide !== 'undefined') lucide.createIcons();
 
-  const promptText = `Write an engaging, illustrated-style short story explaining "${inputVal}" for a Grade 6 student.
+  // Determine instruction based on selected grade
+  let gradeInstruction = '';
+  if (selectedGrade <= 3) {
+    gradeInstruction = 'Use very simple vocabulary, short sentences, playful tone, and relatable everyday characters (animals, toys, family). Keep technical terms minimal and use lots of repetition and simple analogies.';
+  } else if (selectedGrade <= 6) {
+    gradeInstruction = 'Use slightly more descriptive language, introduce basic subject-specific vocabulary with simple definitions, moderate sentence length, and an adventure/curiosity-driven narrative style.';
+  } else if (selectedGrade <= 8) {
+    gradeInstruction = 'Provide more detailed explanations, include proper scientific or subject terminology with context, longer narrative arcs, and simple cause/effect relationships.';
+  } else {
+    gradeInstruction = 'Use accurate subject terminology, complex sentence structures, and incorporate real-world applications or deeper insights suitable for higher grades.';
+  }
+  const promptText = `Write an engaging, illustrated-style short story explaining "${inputVal}" for a Grade ${selectedGrade} student.
+${gradeInstruction}
 Break the story into exactly 4 short paragraphs. Use characters, adventure, or analogy to explain the concept.
 Separate each paragraph with a line containing only "---".
 Do not output any introductory or summary text, just the 4 paragraphs separated by "---".`;

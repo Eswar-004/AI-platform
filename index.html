@@ -145,7 +145,7 @@
     <section id="features" class="section-container">
       <div class="section-title">
         <h2>Supercharge After-School Learning</h2>
-        <p>Built using modern AI techniques to make studying engaging, step-by-step, and tailored to every student's speed.</p>
+        <p>Built using modern AI techniques to make studying step-by-step, and tailored to every student's speed.</p>
       </div>
 
       <div class="feature-grid">
@@ -657,21 +657,26 @@
             <div class="story-tab-grid">
               
               <!-- Input Panel -->
-              <div class="story-creator-panel">
+                <div class="story-creator-panel">
+                  <label for="gradeSelect" style="font-weight: 600; margin-right: 8px;">Choose Your Learning Level:</label>
+                  <select id="gradeSelect" class="grade-select" style="margin-bottom: 12px; padding: 4px 8px; border-radius: 4px;">
+                    <option value="1">Grade 1</option>
+                    <option value="2">Grade 2</option>
+                    <option value="3">Grade 3</option>
+                    <option value="4">Grade 4</option>
+                    <option value="5">Grade 5</option>
+                    <option value="6" selected>Grade 6</option>
+                    <option value="7">Grade 7</option>
+                    <option value="8">Grade 8</option>
+                    <option value="9">Grade 9</option>
+                    <option value="10">Grade 10</option>
+                  </select>
                 <h3>Transform boring topics into stories</h3>
                 <p>Type in any topic from your textbook, and the AI will weave it into an illustrated, engaging fable.</p>
                 
                 <textarea class="story-input-field" rows="4" placeholder="Enter a subject (e.g. Water evaporation, Magna Carta, Volcanos, Prime Numbers)..." id="storyInput"></textarea>
                 
-                <div class="story-presets">
-                  <h4>Or choose a popular preset:</h4>
-                  <div class="preset-buttons">
-                    <button class="btn-preset" onclick="document.getElementById('storyInput').value='Water Evaporation'">Evaporation</button>
-                    <button class="btn-preset" onclick="document.getElementById('storyInput').value='How Plants Breathe'">Photosynthesis</button>
-                    <button class="btn-preset" onclick="document.getElementById('storyInput').value='The Solar System'">The Milky Way</button>
-                    <button class="btn-preset" onclick="document.getElementById('storyInput').value='Gravity'">Falling Apples</button>
-                  </div>
-                </div>
+
 
                 <button class="btn-3d btn-3d-purple" onclick="generateStoryFromInput()" id="storyGenerateBtn">
                   <i data-lucide="sparkles"></i> Generate Interactive Story
