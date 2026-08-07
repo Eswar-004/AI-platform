@@ -816,12 +816,12 @@
               
               <div class="quiz-selectors">
                 <div class="quiz-selector-group">
-                  <label for="quizTopic">Select Subject</label>
-                  <select id="quizTopic" class="quiz-select-input">
-                    <option value="Science - Evaporation">Science - Water Cycles</option>
-                    <option value="Math - Fractions">Math - Dividing Fractions</option>
-                    <option value="History - Middle Ages">History - Ancient Civilizations</option>
-                  </select>
+                  <label for="quizSubject">Subject</label>
+                  <input type="text" id="quizSubject" class="quiz-select-input" placeholder="e.g. Science">
+                </div>
+                <div class="quiz-selector-group">
+                  <label for="quizTopic">Topic</label>
+                  <input type="text" id="quizTopic" class="quiz-select-input" placeholder="e.g. Water Cycles">
                 </div>
                 <div class="quiz-selector-group">
                   <label for="quizDifficulty">Difficulty Level</label>
@@ -829,6 +829,13 @@
                     <option value="Easy">Easy (Explain concepts)</option>
                     <option value="Medium" selected>Medium (Problem Solving)</option>
                     <option value="Hard">Hard (Challenges)</option>
+                  </select>
+                </div>
+                <div class="quiz-selector-group">
+                  <label for="quizQuestionType">Question Type</label>
+                  <select id="quizQuestionType" class="quiz-select-input">
+                    <option value="MCQ" selected>MCQ</option>
+                    <option value="Fill in the Blank">Fill in the Blank</option>
                   </select>
                 </div>
               </div>

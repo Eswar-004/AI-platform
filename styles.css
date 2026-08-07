@@ -1671,7 +1671,7 @@ button, input, select, textarea {
 
 /* --- 9. QUIZ TAB VIEW --- */
 .quiz-welcome-screen {
-  max-width: 600px;
+  max-width: 780px;
   margin: 40px auto;
   text-align: center;
 }
@@ -1690,10 +1690,20 @@ button, input, select, textarea {
 }
 .quiz-selectors {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
   margin-bottom: 30px;
   text-align: left;
+}
+@media (max-width: 768px) {
+  .quiz-selectors {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .quiz-selectors {
+    grid-template-columns: 1fr;
+  }
 }
 .quiz-selector-group label {
   display: block;
@@ -1708,8 +1718,18 @@ button, input, select, textarea {
   border-radius: var(--radius-md);
   padding: 12px;
   font-weight: 700;
+  font-family: inherit;
+  color: var(--text-main);
   outline: none;
   background-color: white;
+  transition: border-color 0.2s ease;
+}
+.quiz-select-input:focus {
+  border-color: var(--color-orange);
+}
+.quiz-select-input::placeholder {
+  color: var(--text-light);
+  font-weight: 500;
 }
 
 .quiz-active-screen {

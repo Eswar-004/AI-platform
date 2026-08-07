@@ -843,6 +843,7 @@ let quizIndex = 0;
 let quizScore = 0;
 let activeQuestions = [];
 let quizOptionSelected = null;
+let currentQuizQuestionType = '';
 
 function initQuiz() {
   resetQuizView();
@@ -855,19 +856,31 @@ function resetQuizView() {
 }
 
 async function startMockQuiz() {
-  const topicSelect = document.getElementById('quizTopic');
+  const subjectInput = document.getElementById('quizSubject');
+  const topicInput = document.getElementById('quizTopic');
   const diffSelect = document.getElementById('quizDifficulty');
+  const questionTypeSelect = document.getElementById('quizQuestionType');
   const generateBtn = document.getElementById('quizGenerateBtn');
   
-  currentQuizTopic = topicSelect.value;
-  currentQuizDifficulty = diffSelect.value;
+  const subjectVal = (subjectInput && subjectInput.value.trim()) ? subjectInput.value.trim() : 'Science';
+  const topicVal = (topicInput && topicInput.value.trim()) ? topicInput.value.trim() : 'Water Cycles';
+  const diffVal = diffSelect ? diffSelect.value : 'Medium';
+  const qTypeVal = questionTypeSelect ? questionTypeSelect.value : 'MCQ';
+
+  currentQuizTopic = `${subjectVal} - ${topicVal}`;
+  currentQuizDifficulty = diffVal;
+  currentQuizQuestionType = qTypeVal;
 
   if (generateBtn) {
     generateBtn.disabled = true;
     generateBtn.textContent = "Generating AI Quiz... 🧠";
   }
 
-  const promptText = `Generate a 3-question multiple choice quiz on the topic "${currentQuizTopic}" with difficulty "${currentQuizDifficulty}" for a Grade 6 student.
+  const typeDesc = qTypeVal === 'Fill in the Blank' 
+    ? 'fill-in-the-blank style (where each question has a blank ___ for the answer)' 
+    : 'multiple choice';
+
+  const promptText = `Generate a 3-question ${typeDesc} quiz on the subject "${subjectVal}" and topic "${topicVal}" with difficulty "${diffVal}" for a Grade 6 student.
 Return the response strictly as a JSON object matching this schema:
 {
   "questions": [
@@ -928,21 +941,36 @@ function showQuizQuestion() {
   const progressPercent = (quizIndex / activeQuestions.length) * 100;
   document.getElementById('quizProgressBar').style.width = `${progressPercent}%`;
 
-  // Render options list
+  // Render options list or fill‑in‑the‑blank input based on question type
   const list = document.getElementById('quizOptionsList');
   list.innerHTML = '';
   quizOptionSelected = null;
 
-  question.options.forEach((opt, idx) => {
-    const btn = document.createElement('div');
-    btn.className = 'quiz-option-item';
-    btn.innerHTML = `
-      <span class="quiz-option-letter">${String.fromCharCode(65 + idx)}</span>
-      <span>${opt}</span>
-    `;
-    btn.onclick = () => selectQuizOption(idx, btn);
-    list.appendChild(btn);
-  });
+  if (currentQuizQuestionType === 'Fill in the Blank') {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = 'quizAnswerInput';
+    input.className = 'quiz-select-input';
+    input.placeholder = 'Your answer';
+    list.appendChild(input);
+    // Enable the Check Answer button when user types
+    const nextBtn = document.getElementById('quizNextBtn');
+    input.addEventListener('input', () => {
+      nextBtn.disabled = input.value.trim() === '';
+    });
+  } else {
+    // MCQ rendering (existing behavior)
+    question.options.forEach((opt, idx) => {
+      const btn = document.createElement('div');
+      btn.className = 'quiz-option-item';
+      btn.innerHTML = `
+        <span class="quiz-option-letter">${String.fromCharCode(65 + idx)}</span>
+        <span>${opt}</span>
+      `;
+      btn.onclick = () => selectQuizOption(idx, btn);
+      list.appendChild(btn);
+    });
+  }
 
   // Hide feedback banner, set next button to check state
   document.getElementById('quizFeedbackBanner').style.display = 'none';
@@ -971,17 +999,25 @@ function nextQuizQuestion() {
 
   // Stage 1: Checking answer
   if (nextBtn.textContent === 'Check Answer') {
-    const isCorrect = (quizOptionSelected === question.correct);
-    
-    // Highlight options
-    const options = document.querySelectorAll('.quiz-option-item');
-    options.forEach((opt, idx) => {
-      if (idx === question.correct) {
-        opt.classList.add('correct');
-      } else if (idx === quizOptionSelected) {
-        opt.classList.add('incorrect');
-      }
-    });
+    let isCorrect = false;
+    if (currentQuizQuestionType === 'Fill in the Blank') {
+      const userAns = (document.getElementById('quizAnswerInput')?.value || '').trim().toLowerCase();
+      const correctAnsRaw = question.answer || (question.options && question.options[question.correct]) || '';
+      const correctAns = correctAnsRaw.replace(/^\s*\w+\)\s*/, '').trim().toLowerCase(); // strip possible "A) " prefix
+      isCorrect = userAns === correctAns;
+    } else {
+      // MCQ
+      isCorrect = (quizOptionSelected === question.correct);
+      // Highlight options
+      const options = document.querySelectorAll('.quiz-option-item');
+      options.forEach((opt, idx) => {
+        if (idx === question.correct) {
+          opt.classList.add('correct');
+        } else if (idx === quizOptionSelected) {
+          opt.classList.add('incorrect');
+        }
+      });
+    }
 
     if (isCorrect) {
       quizScore++;
