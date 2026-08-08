@@ -713,6 +713,56 @@
           <!-- TAB: VOICE LEARNING -->
           <div id="tab-voice" class="dashboard-tab">
             <div class="voice-tab-container">
+              
+              <!-- Voice Error Alert Banner -->
+              <div id="voiceErrorAlert" class="voice-error-alert" style="display: none;">
+                <span id="voiceErrorMessage">Microphone permission denied.</span>
+                <button onclick="dismissVoiceError()" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #991B1B;">&times;</button>
+              </div>
+
+              <!-- Voice Settings Panel -->
+              <div class="card-3d voice-settings-card">
+                <h4 style="font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                  <i data-lucide="settings"></i> Voice Settings
+                </h4>
+                <div class="voice-settings-grid">
+                  <div class="voice-setting-item">
+                    <label for="voiceSelect">Target Voice</label>
+                    <select id="voiceSelect" class="voice-select-input" onchange="updateVoiceSettings()">
+                      <option value="">Default System Voice</option>
+                    </select>
+                  </div>
+
+                  <div class="voice-setting-item">
+                    <label for="voiceLang">Language</label>
+                    <select id="voiceLang" class="voice-select-input" onchange="updateVoiceSettings()">
+                      <option value="en-US">English (US)</option>
+                      <option value="en-IN" selected>English (India)</option>
+                      <option value="ta-IN">Tamil (India)</option>
+                      <option value="hi-IN">Hindi (India)</option>
+                      <option value="te-IN">Telugu (India)</option>
+                      <option value="es-ES">Spanish</option>
+                    </select>
+                  </div>
+
+                  <div class="voice-setting-item">
+                    <label for="voiceRate">Speech Speed (Rate)</label>
+                    <div class="voice-range-container">
+                      <input type="range" id="voiceRate" min="0.5" max="2" step="0.1" value="1" oninput="updateVoiceSettings()">
+                      <span id="voiceRateVal" class="voice-range-val">1.0x</span>
+                    </div>
+                  </div>
+
+                  <div class="voice-setting-item">
+                    <label for="voicePitch">Pitch</label>
+                    <div class="voice-range-container">
+                      <input type="range" id="voicePitch" min="0.5" max="1.5" step="0.1" value="1" oninput="updateVoiceSettings()">
+                      <span id="voicePitchVal" class="voice-range-val">1.0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <!-- Big Avatar robot that animates during talks -->
               <div class="voice-avatar-big" id="voiceAvatar">🤖</div>
               
@@ -726,21 +776,48 @@
                 <span></span><span></span><span></span><span></span><span></span>
               </div>
 
+              <!-- Voice Control Buttons -->
               <div class="voice-actions">
                 <button class="btn-3d btn-3d-sky" id="voiceStartBtn" onclick="toggleVoiceSession()">
-                  <i data-lucide="play"></i> Start Speaking
+                  <i data-lucide="mic"></i> Start Speaking
                 </button>
-                <button class="btn-3d btn-3d-white" onclick="switchTab('chat')">
-                  Go to Text Chat
+                <button class="btn-3d btn-3d-white" id="voicePauseBtn" onclick="pauseVoiceTTS()" disabled title="Pause Speech Output">
+                  <i data-lucide="pause"></i> Pause
+                </button>
+                <button class="btn-3d btn-3d-white" id="voiceResumeBtn" onclick="resumeVoiceTTS()" disabled title="Resume Speech Output">
+                  <i data-lucide="play"></i> Resume
+                </button>
+                <button class="btn-3d btn-3d-white" id="voiceRepeatBtn" onclick="repeatVoiceResponse()" disabled title="Repeat Last AI Answer">
+                  <i data-lucide="rotate-cw"></i> Repeat
+                </button>
+                <button class="btn-3d btn-3d-white" id="voiceMuteBtn" onclick="toggleMuteTTS()" title="Mute or Unmute Voice Output">
+                  <i data-lucide="volume-2"></i> Mute
+                </button>
+                <button class="btn-3d btn-3d-white" onclick="clearVoiceConversation()" title="Clear Conversation History">
+                  <i data-lucide="trash-2"></i> Clear Conversation
                 </button>
               </div>
 
-              <div class="card-3d" style="margin-top: 40px; text-align: left; width: 100%; max-width: 500px;">
-                <h4 style="font-size: 1rem; margin-bottom: 10px;"><i data-lucide="volume-x"></i> Voice Scripts (Subtitles)</h4>
+              <!-- Subtitle Live Display Box -->
+              <div class="card-3d" style="width: 100%; text-align: left; margin-bottom: 20px;">
+                <h4 style="font-size: 1rem; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                  <i data-lucide="volume-2"></i> Live Subtitle / Current Speech
+                </h4>
                 <div style="background-color: var(--bg-primary); padding: 12px; border-radius: var(--radius-sm); min-height: 60px; font-style: italic; font-size: 0.9rem; color: var(--text-muted);" id="voiceSubtitleContainer">
                   Click 'Start Speaking' to begin the conversation. Say "Tell me about evaporation."
                 </div>
               </div>
+
+              <!-- Full Conversation Log Container -->
+              <div class="card-3d voice-transcript-card">
+                <h4 style="font-size: 1rem; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                  <i data-lucide="message-square"></i> Voice Conversation Log
+                </h4>
+                <div class="voice-transcript-history" id="voiceTranscriptHistory">
+                  <p style="font-size: 0.85rem; color: var(--text-muted); font-style: italic;" id="voiceTranscriptEmpty">No messages in this session yet.</p>
+                </div>
+              </div>
+
             </div>
           </div>
 

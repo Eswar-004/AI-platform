@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   // Setup default state
   initQuiz();
+  initVoiceVoices();
 });
 
 // ==========================================
@@ -564,15 +565,88 @@ Do not output any introductory or summary text, just the 4 paragraphs separated 
 
 
 // ==========================================
-// 5. VOICE LEARNING (Waveform animations)
+// 5. VOICE LEARNING (Web Speech API Integration)
 // ==========================================
 
 let isVoiceActive = false;
 let voiceTimer = null;
 let recognitionInstance = null;
 let currentUtterance = null;
+let availableVoices = [];
+let voiceSettings = {
+  voiceIndex: null,
+  rate: 1.0,
+  pitch: 1.0,
+  lang: 'en-IN'
+};
+let isVoiceMuted = false;
+let lastAiVoiceResponse = "";
+let isProcessingVoice = false;
+
+function initVoiceVoices() {
+  if (!('speechSynthesis' in window)) return;
+
+  const populate = () => {
+    availableVoices = window.speechSynthesis.getVoices();
+    const select = document.getElementById('voiceSelect');
+    if (!select) return;
+    const currentVal = select.value;
+    select.innerHTML = '<option value="">Default System Voice</option>';
+    availableVoices.forEach((voice, index) => {
+      const option = document.createElement('option');
+      option.value = index;
+      option.textContent = `${voice.name} (${voice.lang})${voice.default ? ' — Default' : ''}`;
+      select.appendChild(option);
+    });
+    if (currentVal !== "" && currentVal < availableVoices.length) {
+      select.value = currentVal;
+    }
+  };
+
+  populate();
+  if (window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = populate;
+  }
+}
+
+function updateVoiceSettings() {
+  const select = document.getElementById('voiceSelect');
+  const langSelect = document.getElementById('voiceLang');
+  const rateInput = document.getElementById('voiceRate');
+  const pitchInput = document.getElementById('voicePitch');
+  const rateValSpan = document.getElementById('voiceRateVal');
+  const pitchValSpan = document.getElementById('voicePitchVal');
+
+  if (select) voiceSettings.voiceIndex = select.value !== "" ? parseInt(select.value) : null;
+  if (langSelect) voiceSettings.lang = langSelect.value || 'en-IN';
+  if (rateInput) {
+    voiceSettings.rate = parseFloat(rateInput.value) || 1.0;
+    if (rateValSpan) rateValSpan.textContent = `${voiceSettings.rate.toFixed(1)}x`;
+  }
+  if (pitchInput) {
+    voiceSettings.pitch = parseFloat(pitchInput.value) || 1.0;
+    if (pitchValSpan) pitchValSpan.textContent = voiceSettings.pitch.toFixed(1);
+  }
+}
+
+function showVoiceError(message) {
+  const alertBox = document.getElementById('voiceErrorAlert');
+  const msgSpan = document.getElementById('voiceErrorMessage');
+  if (alertBox && msgSpan) {
+    msgSpan.textContent = message;
+    alertBox.style.display = 'flex';
+  }
+}
+
+function dismissVoiceError() {
+  const alertBox = document.getElementById('voiceErrorAlert');
+  if (alertBox) {
+    alertBox.style.display = 'none';
+  }
+}
 
 function toggleVoiceSession() {
+  dismissVoiceError();
   const startBtn = document.getElementById('voiceStartBtn');
   const statusTitle = document.getElementById('voiceStatusTitle');
   const statusSub = document.getElementById('voiceStatusSub');
@@ -580,18 +654,30 @@ function toggleVoiceSession() {
   const avatar = document.getElementById('voiceAvatar');
   const subtitle = document.getElementById('voiceSubtitleContainer');
 
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
   isVoiceActive = !isVoiceActive;
 
   if (isVoiceActive) {
+    if (!SpeechRecognition) {
+      showVoiceError("Web Speech Recognition is not supported by your browser. Please use Chrome or Edge.");
+      isVoiceActive = false;
+      return;
+    }
+
     startBtn.innerHTML = `<i data-lucide="square"></i> Stop Session`;
     startBtn.className = "btn-3d btn-3d-orange";
-    
-    // Waveform visual bars animation
+
+    // Animated waveform bars
     const bars = waveform.querySelectorAll('span');
     voiceTimer = setInterval(() => {
-      bars.forEach(bar => {
-        bar.style.height = `${Math.floor(Math.random() * 45) + 8}px`;
-      });
+      if (waveform.classList.contains('listening') || waveform.classList.contains('speaking')) {
+        bars.forEach(bar => {
+          bar.style.height = `${Math.floor(Math.random() * 45) + 8}px`;
+        });
+      } else {
+        bars.forEach(bar => bar.style.height = '8px');
+      }
     }, 100);
 
     if (window.speechSynthesis) {
@@ -600,8 +686,8 @@ function toggleVoiceSession() {
 
     startListeningCycle();
   } else {
-    // Reset to idle
-    startBtn.innerHTML = `<i data-lucide="play"></i> Start Speaking`;
+    // Reset to idle state
+    startBtn.innerHTML = `<i data-lucide="mic"></i> Start Speaking`;
     startBtn.className = "btn-3d btn-3d-sky";
     statusTitle.textContent = "Ready to talk!";
     statusSub.textContent = "Ask your questions aloud, and hear explanations naturally.";
@@ -609,25 +695,27 @@ function toggleVoiceSession() {
     avatar.textContent = '🤖';
     avatar.classList.remove('speaking');
     subtitle.innerHTML = "Session ended. Click 'Start Speaking' to begin again.";
-    
+
     clearInterval(voiceTimer);
+    voiceTimer = null;
     const bars = waveform.querySelectorAll('span');
     bars.forEach(bar => bar.style.height = '8px');
 
     if (recognitionInstance) {
-      recognitionInstance.abort();
+      try { recognitionInstance.abort(); } catch (e) {}
       recognitionInstance = null;
     }
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
+    setVoiceTTSControlState(false, false, false);
   }
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function startListeningCycle() {
-  if (!isVoiceActive) return;
+  if (!isVoiceActive || isProcessingVoice) return;
 
   const statusTitle = document.getElementById('voiceStatusTitle');
   const statusSub = document.getElementById('voiceStatusSub');
@@ -636,72 +724,75 @@ function startListeningCycle() {
   const subtitle = document.getElementById('voiceSubtitleContainer');
 
   statusTitle.textContent = "EduMate is listening...";
-  statusSub.textContent = "Speak into your microphone.";
+  statusSub.textContent = "Speak clearly into your microphone.";
   waveform.classList.add('listening');
   waveform.classList.remove('speaking');
   avatar.textContent = '👂';
   avatar.classList.remove('speaking');
-  subtitle.innerHTML = "<em>(Listening for your voice input...)</em>";
+  subtitle.innerHTML = "<em>(Listening for your speech...)</em>";
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (SpeechRecognition) {
-    if (recognitionInstance) {
-      recognitionInstance.abort();
-    }
-    recognitionInstance = new SpeechRecognition();
-    recognitionInstance.continuous = false;
-    recognitionInstance.interimResults = false;
-    recognitionInstance.lang = 'en-US';
+  if (!SpeechRecognition) return;
 
-    let gotResult = false;
+  if (recognitionInstance) {
+    try { recognitionInstance.abort(); } catch (e) {}
+  }
 
-    recognitionInstance.onresult = async (event) => {
-      gotResult = true;
-      const spokenText = event.results[0][0].transcript;
-      subtitle.innerHTML = `<strong>You:</strong> ${spokenText}`;
-      recognitionInstance.stop();
-      await processVoiceQuestion(spokenText);
-    };
+  recognitionInstance = new SpeechRecognition();
+  recognitionInstance.continuous = false;
+  recognitionInstance.interimResults = true;
+  recognitionInstance.lang = voiceSettings.lang || 'en-US';
 
-    recognitionInstance.onerror = (err) => {
-      console.warn("Speech recognition error:", err);
-      if (!gotResult) {
-        fallbackVoiceSimulation();
+  let finalTranscript = '';
+
+  recognitionInstance.onresult = (event) => {
+    let interimTranscript = '';
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript;
+      } else {
+        interimTranscript += event.results[i][0].transcript;
       }
-    };
-
-    recognitionInstance.onend = () => {
-      if (!gotResult && isVoiceActive) {
-        fallbackVoiceSimulation();
-      }
-    };
-
-    try {
-      recognitionInstance.start();
-    } catch (e) {
-      console.error("Failed to start speech recognition:", e);
-      fallbackVoiceSimulation();
     }
-  } else {
-    fallbackVoiceSimulation();
+    const currentText = finalTranscript || interimTranscript;
+    subtitle.innerHTML = `<strong>You:</strong> ${currentText}`;
+
+    if (finalTranscript.trim().length > 0) {
+      try { recognitionInstance.stop(); } catch (e) {}
+      processVoiceQuestion(finalTranscript.trim());
+    }
+  };
+
+  recognitionInstance.onerror = (err) => {
+    console.warn("Speech recognition error:", err.error);
+    if (err.error === 'not-allowed' || err.error === 'service-not-allowed') {
+      showVoiceError("Microphone access was denied. Please allow microphone permissions in browser settings.");
+      if (isVoiceActive) toggleVoiceSession();
+    } else if (err.error === 'network') {
+      showVoiceError("Network error occurred during speech recognition.");
+    }
+  };
+
+  recognitionInstance.onend = () => {
+    if (isVoiceActive && !isProcessingVoice && !finalTranscript) {
+      setTimeout(() => {
+        if (isVoiceActive && !isProcessingVoice) {
+          startListeningCycle();
+        }
+      }, 1000);
+    }
+  };
+
+  try {
+    recognitionInstance.start();
+  } catch (e) {
+    console.error("Failed to start speech recognition:", e);
   }
 }
 
-function fallbackVoiceSimulation() {
-  if (!isVoiceActive) return;
-  const subtitle = document.getElementById('voiceSubtitleContainer');
-  subtitle.innerHTML = "<em>(Mic inactive. Simulating question: 'Explain photosynthesis, please.')</em>";
-  
-  setTimeout(async () => {
-    if (isVoiceActive) {
-      subtitle.innerHTML = "<strong>You:</strong> Explain photosynthesis, please.";
-      await processVoiceQuestion("Explain photosynthesis in simple terms for a student");
-    }
-  }, 2000);
-}
-
 async function processVoiceQuestion(questionText) {
-  if (!isVoiceActive) return;
+  if (!isVoiceActive || isProcessingVoice) return;
+  isProcessingVoice = true;
 
   const statusTitle = document.getElementById('voiceStatusTitle');
   const statusSub = document.getElementById('voiceStatusSub');
@@ -709,53 +800,181 @@ async function processVoiceQuestion(questionText) {
   const avatar = document.getElementById('voiceAvatar');
   const subtitle = document.getElementById('voiceSubtitleContainer');
 
+  appendVoiceTranscript('user', questionText);
+
   statusTitle.textContent = "EduMate is thinking...";
   statusSub.textContent = "Fetching explanation from AI.";
   waveform.classList.remove('listening');
-  
-  const aiResponse = await callAiApi(`Keep your answer short, clear and conversational (under 3 sentences) suitable for reading aloud to a Grade 6 student. Question: ${questionText}`);
-  
+  avatar.textContent = '🤔';
+
+  let aiResponse = "";
+  try {
+    const promptText = `You are a friendly AI teacher copilot speaking directly to a student. Keep your answer brief, clear, and natural to read aloud (maximum 2 to 3 sentences). Question: "${questionText}"`;
+    aiResponse = await callAiApi(promptText);
+  } catch (error) {
+    console.error("Error contacting Flask backend / Groq AI:", error);
+    showVoiceError("Backend server or Groq AI is unavailable.");
+    aiResponse = "I'm sorry, I am currently unable to reach the AI server. Please make sure the backend server is running.";
+  }
+
+  isProcessingVoice = false;
+
   if (!isVoiceActive) return;
 
-  const cleanSpeechText = aiResponse.replace(/[*#_\`\[\]()]/g, '');
+  const cleanText = aiResponse.replace(/[*#_\`\[\]()]/g, '').trim();
+  lastAiVoiceResponse = cleanText;
 
-  subtitle.innerHTML = `<strong>You:</strong> ${questionText}<br><strong>AI:</strong> ${aiResponse}`;
-  
+  appendVoiceTranscript('ai', aiResponse);
+  subtitle.innerHTML = `<strong>You:</strong> ${questionText}<br><strong style="color:var(--color-green-dark)">AI:</strong> ${aiResponse}`;
+
+  speakAiResponse(cleanText);
+}
+
+function speakAiResponse(textToSpeak) {
+  const statusTitle = document.getElementById('voiceStatusTitle');
+  const statusSub = document.getElementById('voiceStatusSub');
+  const waveform = document.getElementById('voiceWaveform');
+  const avatar = document.getElementById('voiceAvatar');
+
   statusTitle.textContent = "EduMate is speaking...";
   statusSub.textContent = "Playing explanation audio.";
   waveform.classList.add('speaking');
   avatar.textContent = '🤖';
   avatar.classList.add('speaking');
 
-  if (window.speechSynthesis) {
-    window.speechSynthesis.cancel();
-    currentUtterance = new SpeechSynthesisUtterance(cleanSpeechText);
-    
-    currentUtterance.onend = () => {
-      if (isVoiceActive) {
-        setTimeout(() => {
-          startListeningCycle();
-        }, 1000);
-      }
-    };
-    
-    currentUtterance.onerror = (e) => {
-      console.error("Speech Synthesis Error:", e);
-      if (isVoiceActive) {
-        setTimeout(() => {
-          startListeningCycle();
-        }, 1000);
-      }
-    };
-
-    window.speechSynthesis.speak(currentUtterance);
-  } else {
-    setTimeout(() => {
-      if (isVoiceActive) {
-        startListeningCycle();
-      }
-    }, 5000);
+  if (!('speechSynthesis' in window)) {
+    showVoiceError("Speech Synthesis is not supported by your browser.");
+    setVoiceTTSControlState(false, false, true);
+    if (isVoiceActive) setTimeout(startListeningCycle, 2000);
+    return;
   }
+
+  window.speechSynthesis.cancel();
+
+  if (isVoiceMuted) {
+    setVoiceTTSControlState(false, false, true);
+    waveform.classList.remove('speaking');
+    avatar.classList.remove('speaking');
+    if (isVoiceActive) setTimeout(startListeningCycle, 2500);
+    return;
+  }
+
+  currentUtterance = new SpeechSynthesisUtterance(textToSpeak);
+  currentUtterance.rate = voiceSettings.rate || 1.0;
+  currentUtterance.pitch = voiceSettings.pitch || 1.0;
+
+  if (voiceSettings.lang) {
+    currentUtterance.lang = voiceSettings.lang;
+  }
+
+  if (voiceSettings.voiceIndex !== null && availableVoices[voiceSettings.voiceIndex]) {
+    currentUtterance.voice = availableVoices[voiceSettings.voiceIndex];
+  }
+
+  setVoiceTTSControlState(true, false, true);
+
+  currentUtterance.onend = () => {
+    setVoiceTTSControlState(false, false, true);
+    waveform.classList.remove('speaking');
+    avatar.classList.remove('speaking');
+    if (isVoiceActive) {
+      setTimeout(() => {
+        if (isVoiceActive) startListeningCycle();
+      }, 1000);
+    }
+  };
+
+  currentUtterance.onerror = (e) => {
+    console.error("Speech Synthesis Error:", e);
+    showVoiceError("Speech Synthesis error occurred.");
+    setVoiceTTSControlState(false, false, true);
+    waveform.classList.remove('speaking');
+    avatar.classList.remove('speaking');
+    if (isVoiceActive) {
+      setTimeout(() => {
+        if (isVoiceActive) startListeningCycle();
+      }, 1000);
+    }
+  };
+
+  window.speechSynthesis.speak(currentUtterance);
+}
+
+function appendVoiceTranscript(sender, text) {
+  const history = document.getElementById('voiceTranscriptHistory');
+  const emptyPlaceholder = document.getElementById('voiceTranscriptEmpty');
+  if (emptyPlaceholder) emptyPlaceholder.style.display = 'none';
+
+  if (!history) return;
+
+  const msgDiv = document.createElement('div');
+  msgDiv.className = `voice-transcript-msg ${sender}`;
+  msgDiv.innerHTML = `<strong>${sender === 'user' ? '👤 You' : '🤖 EduMate AI'}:</strong> ${text}`;
+  history.appendChild(msgDiv);
+  history.scrollTop = history.scrollHeight;
+}
+
+function setVoiceTTSControlState(canPause, canResume, canRepeat) {
+  const pauseBtn = document.getElementById('voicePauseBtn');
+  const resumeBtn = document.getElementById('voiceResumeBtn');
+  const repeatBtn = document.getElementById('voiceRepeatBtn');
+
+  if (pauseBtn) pauseBtn.disabled = !canPause;
+  if (resumeBtn) resumeBtn.disabled = !canResume;
+  if (repeatBtn) repeatBtn.disabled = !canRepeat;
+}
+
+function pauseVoiceTTS() {
+  if (window.speechSynthesis && window.speechSynthesis.speaking) {
+    window.speechSynthesis.pause();
+    setVoiceTTSControlState(false, true, true);
+    const statusTitle = document.getElementById('voiceStatusTitle');
+    if (statusTitle) statusTitle.textContent = "Audio Paused";
+  }
+}
+
+function resumeVoiceTTS() {
+  if (window.speechSynthesis && window.speechSynthesis.paused) {
+    window.speechSynthesis.resume();
+    setVoiceTTSControlState(true, false, true);
+    const statusTitle = document.getElementById('voiceStatusTitle');
+    if (statusTitle) statusTitle.textContent = "EduMate is speaking...";
+  }
+}
+
+function repeatVoiceResponse() {
+  if (lastAiVoiceResponse) {
+    speakAiResponse(lastAiVoiceResponse);
+  }
+}
+
+function toggleMuteTTS() {
+  isVoiceMuted = !isVoiceMuted;
+  const muteBtn = document.getElementById('voiceMuteBtn');
+  if (muteBtn) {
+    if (isVoiceMuted) {
+      muteBtn.innerHTML = `<i data-lucide="volume-x"></i> Unmute`;
+      muteBtn.classList.add('btn-3d-orange');
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+    } else {
+      muteBtn.innerHTML = `<i data-lucide="volume-2"></i> Mute`;
+      muteBtn.classList.remove('btn-3d-orange');
+    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+}
+
+function clearVoiceConversation() {
+  const history = document.getElementById('voiceTranscriptHistory');
+  if (history) {
+    history.innerHTML = '<p style="font-size: 0.85rem; color: var(--text-muted); font-style: italic;" id="voiceTranscriptEmpty">No messages in this session yet.</p>';
+  }
+  const subtitle = document.getElementById('voiceSubtitleContainer');
+  if (subtitle) {
+    subtitle.innerHTML = "Click 'Start Speaking' to begin the conversation. Say \"Tell me about evaporation.\"";
+  }
+  lastAiVoiceResponse = "";
+  setVoiceTTSControlState(false, false, false);
 }
 
 

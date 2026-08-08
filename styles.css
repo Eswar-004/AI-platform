@@ -1878,10 +1878,85 @@ button, input, select, textarea {
   display: flex;
   flex-direction: column;
   align-items: center;
-  max-width: 600px;
+  max-width: 720px;
   margin: 20px auto;
   text-align: center;
 }
+
+.voice-error-alert {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: #FEE2E2;
+  border: 2px solid #EF4444;
+  border-radius: var(--radius-md);
+  color: #991B1B;
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+}
+
+.voice-settings-card {
+  width: 100%;
+  margin-bottom: 25px;
+  padding: 18px;
+  text-align: left;
+}
+
+.voice-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  margin-top: 10px;
+}
+
+@media (max-width: 600px) {
+  .voice-settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.voice-setting-item label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.voice-select-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 2px solid var(--border-thick);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  background-color: white;
+  color: var(--text-main);
+  outline: none;
+}
+
+.voice-range-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.voice-range-container input[type="range"] {
+  flex-grow: 1;
+  cursor: pointer;
+}
+
+.voice-range-val {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-sky-dark);
+  min-width: 35px;
+}
+
 .voice-avatar-big {
   width: 140px;
   height: 140px;
@@ -1919,7 +1994,7 @@ button, input, select, textarea {
   background-color: var(--bg-white);
   border: 2px solid var(--border-thick);
   border-radius: var(--radius-md);
-  margin-bottom: 40px;
+  margin-bottom: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1942,7 +2017,46 @@ button, input, select, textarea {
 
 .voice-actions {
   display: flex;
-  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+.voice-transcript-card {
+  width: 100%;
+  text-align: left;
+}
+
+.voice-transcript-history {
+  max-height: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 5px;
+  margin-top: 10px;
+}
+
+.voice-transcript-msg {
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.voice-transcript-msg.user {
+  background-color: var(--color-sky-light);
+  border: 2px solid var(--color-sky);
+  align-self: flex-end;
+  max-width: 85%;
+}
+
+.voice-transcript-msg.ai {
+  background-color: var(--color-green-light);
+  border: 2px solid var(--color-green);
+  align-self: flex-start;
+  max-width: 85%;
 }
 
 /* --- 11. HOMEWORK SCAN TAB VIEW --- */
