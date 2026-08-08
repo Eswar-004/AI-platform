@@ -7,6 +7,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from config import Config
 from routes.ai_routes import ai_bp
+from routes.story_routes import story_bp
 
 app = Flask(__name__)
 
@@ -15,6 +16,7 @@ CORS(app)
 
 # Register blueprints
 app.register_blueprint(ai_bp, url_prefix="/api/ai")
+app.register_blueprint(story_bp, url_prefix="/api/story")
 
 @app.route("/health", methods=["GET"])
 def health_check():

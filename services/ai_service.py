@@ -71,3 +71,49 @@ Always prioritize clarity over length.
     except Exception as e:
         print(f"Groq API Error: {e}", file=sys.stderr)
         raise Exception(f"Groq API Error: {str(e)}")
+
+
+def generate_story_ai(topic: str, grade_level: str = "6", subject: str = "") -> dict:
+    """
+    Generate an educational story using Groq AI SDK.
+    Returns a dictionary with story contents.
+    """
+    if not topic or not topic.strip():
+        return {
+            "error": "clarification_needed",
+            "message": "Topic is required to generate a story."
+        }
+
+    grade_instruction = ""
+    try:
+        g = int(grade_level)
+        if g <= 3:
+            grade_instruction = "Use very simple vocabulary, playful tone, and everyday characters."
+        elif g <= 6:
+            grade_instruction = "Use engaging descriptive language with basic definitions and adventure narrative."
+        elif g <= 8:
+            grade_instruction = "Include scientific/subject terms with context and cause/effect relationships."
+        else:
+            grade_instruction = "Use accurate subject terminology, deeper insights, and real-world applications."
+    except ValueError:
+        grade_instruction = "Use engaging descriptive language suited for middle school students."
+
+    prompt = f"""Write an engaging, illustrated-style short story explaining "{topic}" for a Grade {grade_level} student.
+{grade_instruction}
+Break the story into exactly 4 short paragraphs. Use characters, adventure, or analogy to explain the concept.
+Separate each paragraph with a line containing only "---".
+Do not output any introductory or summary text, just the 4 paragraphs separated by "---"."""
+
+    try:
+        story_text = generate_response(prompt)
+        return {
+            "success": True,
+            "title": f"The Story of {topic}",
+            "story": story_text,
+            "response": story_text,
+            "topic": topic,
+            "grade_level": grade_level
+        }
+    except Exception as e:
+        print(f"Error generating story AI: {e}", file=sys.stderr)
+        raise e

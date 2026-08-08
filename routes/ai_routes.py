@@ -4,7 +4,7 @@ import os
 
 # Adjust path to import services if run from different Cwds
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from services.ai_service import generate_response
+from services.ai_service import generate_response, generate_story_ai
 
 ai_bp = Blueprint("ai", __name__)
 
@@ -44,3 +44,46 @@ def ai_chat():
             "success": False,
             "response": "Unable to generate AI response."
         }), 500
+
+
+@ai_bp.route("/story", methods=["POST"])
+def ai_story():
+    """
+    POST /api/ai/story
+    Accepts: { "prompt": str } or { "topic": str, "gradeLevel": str }
+    """
+    data = request.get_json() or {}
+    prompt = data.get("prompt", "")
+    topic = data.get("topic", prompt) or ""
+    topic = str(topic).strip()
+    grade_level = str(data.get("gradeLevel", data.get("grade_level", "6"))).strip()
+    subject = str(data.get("subject", "")).strip()
+
+    if not topic and not prompt:
+        return jsonify({
+            "success": False,
+            "response": "Topic or prompt is required."
+        }), 400
+
+    try:
+        result = generate_story_ai(topic=topic or prompt, grade_level=grade_level, subject=subject)
+        if isinstance(result, dict) and result.get("error") == "clarification_needed":
+            return jsonify({
+                "success": False,
+                "response": result.get("message", "Topic is unclear.")
+            }), 400
+
+        story_text = result.get("story", result.get("response", ""))
+        return jsonify({
+            "success": True,
+            "response": story_text,
+            "story": story_text,
+            "title": result.get("title", f"The Story of {topic}")
+        }), 200
+    except Exception as e:
+        print(f"Error in /api/ai/story: {e}", file=sys.stderr)
+        return jsonify({
+            "success": False,
+            "response": "Unable to generate story."
+        }), 500
+
