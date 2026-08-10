@@ -8,6 +8,23 @@ load_dotenv(ENV_PATH)
 
 
 class Config:
+
+    # MySQL Configuration
+    MYSQL_HOST = "localhost"
+    MYSQL_USER = "root"
+    MYSQL_PASSWORD = "2889"
+    MYSQL_DATABASE = "edumate_db"
+    MYSQL_PORT = 3306
+
+    # SQLAlchemy
+    SQLALCHEMY_DATABASE_URI = (
+        f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}"
+        f"@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}"
+    )
+
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # Groq Configuration
     GROQ_API_KEY = os.getenv("GROQ_API_KEY", "YOUR_API_KEY")
     GROQ_API_URL = os.getenv(
         "GROQ_API_URL",
@@ -22,10 +39,5 @@ class Config:
     DEBUG = os.getenv("DEBUG", "True").lower() in (
         "true", "1", "yes"
     )
-
-    DATABASE_URL = os.getenv("DATABASE_URL")
-
-    SQLALCHEMY_DATABASE_URI = DATABASE_URL
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "edumate-jwt-secret-key-2026-safe-key")
