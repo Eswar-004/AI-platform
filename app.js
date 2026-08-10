@@ -1,4 +1,4 @@
-// EduMate AI Platform Interactivity Logic
+// AI Platform Interactivity Logic
 
 // Initialize Lucide Icons on load
 document.addEventListener('DOMContentLoaded', () => {
@@ -94,7 +94,7 @@ function switchTab(tabName) {
 
 function playMockDemo() {
   document.getElementById('demoModal').style.display = 'flex';
-  document.getElementById('demoStatusText').innerHTML = 'Click Play to see EduMate AI in Action';
+  document.getElementById('demoStatusText').innerHTML = 'Click Play to see AI in Action';
 }
 
 function closeMockDemo() {
@@ -141,7 +141,7 @@ function appendChatMessage(sender, content, key = null) {
   const avatar = document.createElement('div');
   avatar.className = 'msg-avatar';
   if (sender === 'ai') {
-    avatar.innerHTML = `<div class="bot-avatar" style="width: 32px; height: 32px; font-size: 1rem;">E</div>`;
+    avatar.innerHTML = `<div class="bot-avatar" style="width: 32px; height: 32px; font-size: 1rem;">🤖</div>`;
   } else {
     avatar.innerHTML = `<div class="profile-avatar" style="width: 32px; height: 32px; font-size: 0.9rem;">A</div>`;
   }
@@ -382,7 +382,7 @@ function showAiTypingIndicator() {
   indicator.className = 'chat-msg ai typing-indicator-msg';
   indicator.id = 'aiTypingIndicator';
   indicator.innerHTML = `
-    <div class="msg-avatar"><div class="bot-avatar" style="width: 32px; height: 32px; font-size: 1rem;">E</div></div>
+    <div class="msg-avatar"><div class="bot-avatar" style="width: 32px; height: 32px; font-size: 1rem;">🤖</div></div>
     <div class="msg-bubble" style="padding: 10px 15px; font-style: italic;">
       <span>Thinking...</span>
     </div>
@@ -723,7 +723,7 @@ function startListeningCycle() {
   const avatar = document.getElementById('voiceAvatar');
   const subtitle = document.getElementById('voiceSubtitleContainer');
 
-  statusTitle.textContent = "EduMate is listening...";
+  statusTitle.textContent = "AI is listening...";
   statusSub.textContent = "Speak clearly into your microphone.";
   waveform.classList.add('listening');
   waveform.classList.remove('speaking');
@@ -802,7 +802,7 @@ async function processVoiceQuestion(questionText) {
 
   appendVoiceTranscript('user', questionText);
 
-  statusTitle.textContent = "EduMate is thinking...";
+  statusTitle.textContent = "AI is thinking...";
   statusSub.textContent = "Fetching explanation from AI.";
   waveform.classList.remove('listening');
   avatar.textContent = '🤔';
@@ -836,7 +836,7 @@ function speakAiResponse(textToSpeak) {
   const waveform = document.getElementById('voiceWaveform');
   const avatar = document.getElementById('voiceAvatar');
 
-  statusTitle.textContent = "EduMate is speaking...";
+  statusTitle.textContent = "AI is speaking...";
   statusSub.textContent = "Playing explanation audio.";
   waveform.classList.add('speaking');
   avatar.textContent = '🤖';
@@ -909,7 +909,7 @@ function appendVoiceTranscript(sender, text) {
 
   const msgDiv = document.createElement('div');
   msgDiv.className = `voice-transcript-msg ${sender}`;
-  msgDiv.innerHTML = `<strong>${sender === 'user' ? '👤 You' : '🤖 EduMate AI'}:</strong> ${text}`;
+  msgDiv.innerHTML = `<strong>${sender === 'user' ? '👤 You' : '🤖 AI Assistant'}:</strong> ${text}`;
   history.appendChild(msgDiv);
   history.scrollTop = history.scrollHeight;
 }
@@ -938,7 +938,7 @@ function resumeVoiceTTS() {
     window.speechSynthesis.resume();
     setVoiceTTSControlState(true, false, true);
     const statusTitle = document.getElementById('voiceStatusTitle');
-    if (statusTitle) statusTitle.textContent = "EduMate is speaking...";
+    if (statusTitle) statusTitle.textContent = "AI is speaking...";
   }
 }
 

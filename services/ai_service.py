@@ -27,7 +27,7 @@ def generate_response(prompt: str) -> str:
                 {
                     "role": "system",
                     "content": """
-You are EduMate AI, an intelligent AI tutor designed for school and college students.
+You are an intelligent AI tutor designed for school and college students.
 
 Your primary goal is to explain concepts clearly, accurately, and concisely.
 
