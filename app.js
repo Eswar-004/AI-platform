@@ -1,19 +1,22 @@
 // AI Platform Interactivity Logic
 
-// Initialize Lucide Icons on load
-document.addEventListener('DOMContentLoaded', () => {
-  if (typeof lucide !== 'undefined') {
-    lucide.createIcons();
-  }
-  // Setup default state
-  initQuiz();
-  initVoiceVoices();
-});
+// ==========================================
+// CENTRALIZED API & BACKEND URL CONFIGURATION
+// ==========================================
+const BACKEND_BASE_URL = "http://localhost:5000";
+const API_BASE_URL = `${BACKEND_BASE_URL}/api/ai`;
 
-// ==========================================
-// API INTEGRATION
-// ==========================================
-const API_BASE_URL = "http://localhost:5000/api/ai";
+// Global Auth State
+let authToken = localStorage.getItem('authToken') || null;
+let currentUser = null;
+let isLoggingIn = false;
+
+try {
+  const savedUser = localStorage.getItem('currentUser');
+  if (savedUser) currentUser = JSON.parse(savedUser);
+} catch (e) {
+  currentUser = null;
+}
 
 async function callAiApi(prompt) {
   try {
@@ -39,53 +42,8 @@ async function callAiApi(prompt) {
 }
 
 // ==========================================
-// 1. VIEW & NAVIGATION MANAGEMENT
+// 1. WATCH DEMO MODAL
 // ==========================================
-
-function switchToStudentView(initialTab = 'home') {
-  document.getElementById('landingView').classList.remove('active');
-  document.getElementById('studentView').classList.add('active');
-  switchTab(initialTab);
-}
-
-function switchToLandingView() {
-  document.getElementById('studentView').classList.remove('active');
-  document.getElementById('landingView').classList.add('active');
-}
-
-function switchTab(tabName) {
-  // Hide all tabs
-  const tabs = document.querySelectorAll('.dashboard-tab');
-  tabs.forEach(t => t.classList.remove('active'));
-  
-  // Deactivate all sidebar links
-  const menuItems = document.querySelectorAll('.sidebar-item');
-  menuItems.forEach(item => item.classList.remove('active'));
-
-  // Show active tab
-  const activeTab = document.getElementById(`tab-${tabName}`);
-  if (activeTab) {
-    activeTab.classList.add('active');
-  }
-
-  // Activate sidebar item
-  const activeMenuItem = document.getElementById(`side-${tabName}`);
-  if (activeMenuItem) {
-    activeMenuItem.classList.add('active');
-  }
-
-  // Update header title
-  const titleMap = {
-    'home': 'Home Dashboard',
-    'chat': 'AI Chat Tutor',
-    'story': 'Illustrated Story Mode',
-    'voice': 'Voice Copilot Session',
-    'homework': 'Homework Scanner & Helper',
-    'quiz': 'AI Quiz Generator',
-    'progress': 'Detailed Learning Progress'
-  };
-  document.getElementById('header-tab-title').textContent = titleMap[tabName] || 'Dashboard';
-}
 
 
 // ==========================================
@@ -1300,3 +1258,643 @@ function quitQuiz() {
     resetQuizView();
   }
 }
+
+// ==========================================
+// AUTHENTICATION & ROLE-BASED APPLICATION STATE
+// ==========================================
+
+// Global API Fetch helper with JWT header
+async function authFetch(endpoint, options = {}) {
+  options.headers = options.headers || {};
+  if (!(options.body instanceof FormData) && !options.headers['Content-Type']) {
+    options.headers['Content-Type'] = 'application/json';
+  }
+  if (authToken) {
+    options.headers['Authorization'] = `Bearer ${authToken}`;
+  }
+
+  const url = endpoint.startsWith('http') ? endpoint : `${BACKEND_BASE_URL}${endpoint}`;
+  const response = await fetch(url, options);
+
+  if (response.status === 401) {
+    // Token expired or invalid session
+    logout(false);
+    throw new Error("Session expired. Please log in again.");
+  }
+  return response;
+}
+
+// On page load, verify session if token exists, or stay on landing page
+document.addEventListener('DOMContentLoaded', async () => {
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  initQuiz();
+  initVoiceVoices();
+
+  if (authToken) {
+    try {
+      const res = await authFetch('/api/auth/me');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.user) {
+          currentUser = data.user;
+          localStorage.setItem('currentUser', JSON.stringify(currentUser));
+          if (currentUser.role === 'teacher') {
+            switchToTeacherView('dashboard');
+          } else {
+            switchToStudentView('home');
+          }
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Stored token is invalid or expired:", err);
+      logout(false);
+      return;
+    }
+  }
+
+  // If no valid token, show landing view by default
+  switchToLandingView();
+});
+
+// View Navigation Management
+function hideAllViews() {
+  document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+}
+
+function showLoginView() {
+  hideAllViews();
+  const loginView = document.getElementById('loginView');
+  if (loginView) loginView.classList.add('active');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function togglePasswordVisibility(inputId, btnElem) {
+  const input = document.getElementById(inputId);
+  const icon = document.getElementById('togglePasswordIcon');
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (icon) icon.setAttribute('data-lucide', 'eye-off');
+  } else {
+    input.type = 'password';
+    if (icon) icon.setAttribute('data-lucide', 'eye');
+  }
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function fillAndLogin(email, password) {
+  const emailInput = document.getElementById('loginEmail');
+  const passInput = document.getElementById('loginPassword');
+  if (emailInput) emailInput.value = email;
+  if (passInput) passInput.value = password;
+  performLogin(email, password);
+}
+
+function handleLoginSubmit(event) {
+  event.preventDefault();
+  const emailInput = document.getElementById('loginEmail');
+  const passInput = document.getElementById('loginPassword');
+  const email = emailInput ? emailInput.value.trim() : '';
+  const password = passInput ? passInput.value.trim() : '';
+  performLogin(email, password);
+}
+
+async function performLogin(email, password) {
+  if (isLoggingIn) return;
+  isLoggingIn = true;
+
+  const alertBox = document.getElementById('loginAlert');
+  const submitBtn = document.getElementById('loginSubmitBtn');
+  const btnText = document.getElementById('loginBtnText');
+  const btnIcon = document.getElementById('loginBtnIcon');
+  const emailInput = document.getElementById('loginEmail');
+  const passInput = document.getElementById('loginPassword');
+
+  if (alertBox) alertBox.style.display = 'none';
+
+  // Set loading state
+  if (submitBtn) submitBtn.disabled = true;
+  if (emailInput) emailInput.disabled = true;
+  if (passInput) passInput.disabled = true;
+  if (btnText) btnText.textContent = "Logging in...";
+  if (btnIcon) btnIcon.setAttribute('data-lucide', 'loader');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+
+  try {
+    const res = await fetch(`${BACKEND_BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      if (alertBox) {
+        alertBox.className = 'login-alert alert-danger';
+        alertBox.textContent = data.message || 'Invalid email or password.';
+        alertBox.style.display = 'block';
+      }
+      return;
+    }
+
+    // Store JWT token & user
+    authToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem('authToken', authToken);
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+    // Redirect based on role returned by backend
+    if (currentUser.role === 'teacher') {
+      switchToTeacherView('dashboard');
+    } else {
+      switchToStudentView('home');
+    }
+
+  } catch (err) {
+    if (alertBox) {
+      alertBox.className = 'login-alert alert-danger';
+      alertBox.textContent = 'Unable to connect to the server. Please check if Flask backend is running on port 5000.';
+      alertBox.style.display = 'block';
+    }
+  } finally {
+    isLoggingIn = false;
+    if (submitBtn) submitBtn.disabled = false;
+    if (emailInput) emailInput.disabled = false;
+    if (passInput) passInput.disabled = false;
+    if (btnText) btnText.textContent = "Log In";
+    if (btnIcon) btnIcon.setAttribute('data-lucide', 'log-in');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+}
+
+async function logout(callApi = true) {
+  if (callApi && authToken) {
+    try {
+      await fetch(`${BACKEND_BASE_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+    } catch (e) {}
+  }
+  authToken = null;
+  currentUser = null;
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('currentUser');
+  switchToLandingView();
+}
+
+function switchToTeacherView(initialTab = 'dashboard') {
+  if (!authToken || !currentUser) {
+    showLoginView();
+    return;
+  }
+  if (currentUser.role !== 'teacher') {
+    switchToStudentView('home');
+    return;
+  }
+  hideAllViews();
+  const tView = document.getElementById('teacherView');
+  if (tView) tView.classList.add('active');
+
+  const tNameElem = document.getElementById('teacherUserName');
+  if (tNameElem && currentUser) {
+    tNameElem.textContent = currentUser.name;
+  }
+
+  switchTeacherTab(initialTab);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function switchTab(tabName) {
+  if (!authToken || !currentUser) {
+    showLoginView();
+    return;
+  }
+  if (currentUser.role !== 'student') {
+    switchToTeacherView('dashboard');
+    return;
+  }
+
+  const tabs = document.querySelectorAll('#studentView .dashboard-tab');
+  tabs.forEach(t => t.classList.remove('active'));
+
+  const menuItems = document.querySelectorAll('#studentView .sidebar-item');
+  menuItems.forEach(item => item.classList.remove('active'));
+
+  const activeTab = document.getElementById(`tab-${tabName}`);
+  if (activeTab) activeTab.classList.add('active');
+
+  const activeMenuItem = document.getElementById(`side-${tabName}`);
+  if (activeMenuItem) activeMenuItem.classList.add('active');
+
+  const titleMap = {
+    'home': 'Home Dashboard',
+    'chat': 'AI Chat Tutor',
+    'story': 'Illustrated Story Mode',
+    'voice': 'Voice Copilot Session',
+    'homework': 'Homework Scanner & Helper',
+    'quiz': 'AI Quiz Generator',
+    'progress': 'Detailed Learning Progress',
+    'tasks': 'My Assigned Tasks'
+  };
+  const titleElem = document.getElementById('header-tab-title');
+  if (titleElem) titleElem.textContent = titleMap[tabName] || 'Dashboard';
+
+  if (tabName === 'tasks') {
+    loadStudentTasks();
+  }
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function switchTeacherTab(tabName) {
+  if (!authToken || !currentUser) {
+    showLoginView();
+    return;
+  }
+  if (currentUser.role !== 'teacher') {
+    switchToStudentView('home');
+    return;
+  }
+
+  const tabs = document.querySelectorAll('#teacherView .dashboard-tab');
+  tabs.forEach(t => t.classList.remove('active'));
+
+  const menuItems = document.querySelectorAll('#teacherView .sidebar-item');
+  menuItems.forEach(item => item.classList.remove('active'));
+
+  const activeTab = document.getElementById(`teacher-tab-${tabName}`);
+  if (activeTab) activeTab.classList.add('active');
+
+  const activeMenuItem = document.getElementById(`teacher-side-${tabName}`);
+  if (activeMenuItem) activeMenuItem.classList.add('active');
+
+  const titleMap = {
+    'dashboard': 'Teacher Overview Dashboard',
+    'add-students': 'Add New Student',
+    'view-students': 'Registered Students & Progress',
+    'assign-tasks': 'Assign Homework Task',
+    'review-work': 'Review Student Submissions'
+  };
+  const titleElem = document.getElementById('teacher-header-title');
+  if (titleElem) titleElem.textContent = titleMap[tabName] || 'Teacher Dashboard';
+
+  if (tabName === 'dashboard') loadTeacherDashboardStats();
+  if (tabName === 'view-students') loadTeacherStudents();
+  if (tabName === 'assign-tasks') loadTeacherStudentsForDropdown();
+  if (tabName === 'review-work') loadTeacherReviews();
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+// ==========================================
+// STUDENT TASK MODULE FUNCTIONS
+// ==========================================
+async function loadStudentTasks() {
+  const container = document.getElementById('studentTasksList');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align: center; padding: 30px;"><p>Loading tasks...</p></div>';
+
+  try {
+    const res = await authFetch('/api/student/tasks');
+    const data = await res.json();
+    if (!data.success || !data.tasks || data.tasks.length === 0) {
+      container.innerHTML = `
+        <div class="card-3d" style="text-align: center; padding: 40px;">
+          <i data-lucide="check-circle" style="font-size: 3rem; color: var(--color-green); margin-bottom: 10px;"></i>
+          <h4>All Caught Up!</h4>
+          <p style="color: var(--text-muted);">You have no pending tasks assigned at this moment.</p>
+        </div>
+      `;
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+      return;
+    }
+
+    container.innerHTML = data.tasks.map(task => {
+      const sub = task.submission;
+      let statusBadge = `<span class="badge-status assigned">Assigned</span>`;
+      if (task.status === 'submitted' || (sub && sub.status === 'submitted')) {
+        statusBadge = `<span class="badge-status submitted">Submitted</span>`;
+      } else if (task.status === 'reviewed' || (sub && sub.status === 'reviewed')) {
+        statusBadge = `<span class="badge-status reviewed">Reviewed</span>`;
+      }
+
+      let submissionArea = '';
+      if (!sub || sub.status === 'submitted') {
+        submissionArea = `
+          <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-light);">
+            <label style="font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 6px;">Your Answer / Solution:</label>
+            <textarea id="taskAnswer_${task.id}" rows="3" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid var(--border-thick); font-family: inherit;" placeholder="Write your completed answer here...">${sub ? sub.answer || '' : ''}</textarea>
+            <button class="btn-3d btn-3d-green" style="margin-top: 10px; font-size: 0.88rem;" onclick="handleStudentSubmitTask(${task.id})">
+              <i data-lucide="send"></i> ${sub ? 'Update & Resubmit Work' : 'Submit Work'}
+            </button>
+          </div>
+        `;
+      } else if (sub && sub.status === 'reviewed') {
+        submissionArea = `
+          <div style="margin-top: 15px; padding: 12px; background-color: var(--color-green-light); border-radius: 8px; border: 1px solid var(--color-green);">
+            <h5 style="color: var(--color-green-dark); margin-bottom: 4px;"><i data-lucide="award"></i> Teacher Feedback &amp; Marks</h5>
+            <p style="font-size: 0.9rem; margin-bottom: 4px;"><strong>Your Submitted Answer:</strong> "${sub.answer}"</p>
+            <p style="font-size: 0.9rem; margin-bottom: 4px;"><strong>Teacher Feedback:</strong> ${sub.teacher_feedback || 'No written feedback provided.'}</p>
+            ${sub.marks !== null ? `<p style="font-size: 0.95rem; font-weight: 800; color: var(--color-green-dark); margin: 0;">Grade/Marks: ${sub.marks} / 100</p>` : ''}
+          </div>
+        `;
+      }
+
+      return `
+        <div class="task-card-item">
+          <div class="task-card-header">
+            <div>
+              <span class="tag-badge tag-sky" style="margin-bottom: 4px; display: inline-block;">${task.subject || 'General'}</span>
+              <h4 class="task-card-title">${task.title}</h4>
+            </div>
+            ${statusBadge}
+          </div>
+          <p class="task-card-desc">${task.description || 'No additional instructions provided.'}</p>
+          <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; gap: 15px;">
+            <span><i data-lucide="calendar"></i> Assigned: ${task.created_at ? task.created_at.substring(0, 10) : 'Today'}</span>
+            ${task.due_date ? `<span><i data-lucide="clock"></i> Due: ${task.due_date}</span>` : ''}
+            <span><i data-lucide="user"></i> Teacher: ${task.teacher_name || 'Demo Teacher'}</span>
+          </div>
+          ${submissionArea}
+        </div>
+      `;
+    }).join('');
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  } catch (err) {
+    container.innerHTML = `<div class="card-3d"><p style="color: red;">Error loading tasks: ${err.message}</p></div>`;
+  }
+}
+
+async function handleStudentSubmitTask(taskId) {
+  const answerElem = document.getElementById(`taskAnswer_${taskId}`);
+  if (!answerElem) return;
+  const answer = answerElem.value.trim();
+
+  if (!answer) {
+    alert("Please enter your answer/solution before submitting.");
+    return;
+  }
+
+  try {
+    const res = await authFetch(`/api/student/tasks/${taskId}/submit`, {
+      method: 'POST',
+      body: JSON.stringify({ answer })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert("Work submitted successfully!");
+      loadStudentTasks();
+    } else {
+      alert(data.message || "Failed to submit task.");
+    }
+  } catch (err) {
+    alert("Error submitting task: " + err.message);
+  }
+}
+
+// ==========================================
+// TEACHER MODULE FUNCTIONS
+// ==========================================
+async function loadTeacherDashboardStats() {
+  try {
+    const [resS, resT, resR] = await Promise.all([
+      authFetch('/api/teacher/students'),
+      authFetch('/api/teacher/tasks'),
+      authFetch('/api/teacher/reviews')
+    ]);
+
+    const dataS = await resS.json();
+    const dataT = await resT.json();
+    const dataR = await resR.json();
+
+    if (dataS.success && dataS.students) {
+      document.getElementById('statTotalStudents').textContent = dataS.students.length;
+    }
+    if (dataT.success && dataT.tasks) {
+      document.getElementById('statTotalTasks').textContent = dataT.tasks.length;
+    }
+    if (dataR.success && dataR.submissions) {
+      const pending = dataR.submissions.filter(s => s.status === 'submitted').length;
+      document.getElementById('statPendingReviews').textContent = pending;
+    }
+  } catch (err) {
+    console.warn("Failed to load dashboard stats:", err);
+  }
+}
+
+async function loadTeacherStudents() {
+  const tbody = document.getElementById('teacherStudentsTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Loading students...</td></tr>';
+
+  try {
+    const res = await authFetch('/api/teacher/students');
+    const data = await res.json();
+    if (!data.success || !data.students || data.students.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No students registered yet. Click "Add Students" to enroll a student.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.students.map(s => `
+      <tr>
+        <td>#${s.id}</td>
+        <td><strong>${s.name}</strong></td>
+        <td>${s.email}</td>
+        <td>${s.total_tasks || 0}</td>
+        <td><span class="badge-status reviewed">${s.completed_tasks || 0} Done</span></td>
+        <td><span class="badge-status assigned">Student</span></td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" style="color: red; padding: 20px;">Error: ${err.message}</td></tr>`;
+  }
+}
+
+async function loadTeacherStudentsForDropdown() {
+  const select = document.getElementById('taskStudentSelect');
+  if (!select) return;
+  select.innerHTML = '<option value="">Loading students...</option>';
+
+  try {
+    const res = await authFetch('/api/teacher/students');
+    const data = await res.json();
+    if (data.success && data.students && data.students.length > 0) {
+      select.innerHTML = '<option value="">-- Select Student --</option>' +
+        data.students.map(s => `<option value="${s.id}">${s.name} (${s.email})</option>`).join('');
+    } else {
+      select.innerHTML = '<option value="">No students available. Create a student first.</option>';
+    }
+  } catch (err) {
+    select.innerHTML = '<option value="">Failed to load students</option>';
+  }
+}
+
+async function handleCreateStudent(event) {
+  event.preventDefault();
+  const alertBox = document.getElementById('addStudentAlert');
+  if (alertBox) alertBox.style.display = 'none';
+
+  const name = document.getElementById('newStudentName').value.trim();
+  const email = document.getElementById('newStudentEmail').value.trim();
+  const password = document.getElementById('newStudentPassword').value.trim();
+
+  try {
+    const res = await authFetch('/api/teacher/students', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, password })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      if (alertBox) {
+        alertBox.className = 'login-alert alert-success';
+        alertBox.textContent = `Student "${name}" created successfully!`;
+        alertBox.style.display = 'block';
+      }
+      document.getElementById('addStudentForm').reset();
+    } else {
+      if (alertBox) {
+        alertBox.className = 'login-alert alert-danger';
+        alertBox.textContent = data.message || 'Failed to create student account.';
+        alertBox.style.display = 'block';
+      }
+    }
+  } catch (err) {
+    if (alertBox) {
+      alertBox.className = 'login-alert alert-danger';
+      alertBox.textContent = 'Error: ' + err.message;
+      alertBox.style.display = 'block';
+    }
+  }
+}
+
+async function handleAssignTask(event) {
+  event.preventDefault();
+  const alertBox = document.getElementById('assignTaskAlert');
+  if (alertBox) alertBox.style.display = 'none';
+
+  const student_id = document.getElementById('taskStudentSelect').value;
+  const subject = document.getElementById('taskSubjectInput').value.trim();
+  const title = document.getElementById('taskTitleInput').value.trim();
+  const description = document.getElementById('taskDescriptionInput').value.trim();
+  const due_date = document.getElementById('taskDueDateInput').value;
+
+  if (!student_id) {
+    alert("Please select a student.");
+    return;
+  }
+
+  try {
+    const res = await authFetch('/api/teacher/tasks', {
+      method: 'POST',
+      body: JSON.stringify({ student_id: parseInt(student_id), subject, title, description, due_date })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      if (alertBox) {
+        alertBox.className = 'login-alert alert-success';
+        alertBox.textContent = `Task "${title}" assigned successfully!`;
+        alertBox.style.display = 'block';
+      }
+      document.getElementById('assignTaskForm').reset();
+    } else {
+      if (alertBox) {
+        alertBox.className = 'login-alert alert-danger';
+        alertBox.textContent = data.message || 'Failed to assign task.';
+        alertBox.style.display = 'block';
+      }
+    }
+  } catch (err) {
+    if (alertBox) {
+      alertBox.className = 'login-alert alert-danger';
+      alertBox.textContent = 'Error: ' + err.message;
+      alertBox.style.display = 'block';
+    }
+  }
+}
+
+async function loadTeacherReviews() {
+  const container = document.getElementById('teacherReviewsList');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align: center; padding: 30px;"><p>Loading submissions...</p></div>';
+
+  try {
+    const res = await authFetch('/api/teacher/reviews');
+    const data = await res.json();
+
+    if (!data.success || !data.submissions || data.submissions.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 30px;">
+          <p style="color: var(--text-muted);">No student submissions to review at this time.</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = data.submissions.map(sub => {
+      const isReviewed = sub.status === 'reviewed';
+      return `
+        <div class="task-card-item">
+          <div class="task-card-header">
+            <div>
+              <span class="tag-badge tag-sky" style="margin-bottom: 4px; display: inline-block;">${sub.student_name || 'Student'} (${sub.student_email || ''})</span>
+              <h4 class="task-card-title">${sub.task_title || 'Homework Assignment'}</h4>
+            </div>
+            <span class="badge-status ${isReviewed ? 'reviewed' : 'submitted'}">${isReviewed ? 'Reviewed' : 'Needs Review'}</span>
+          </div>
+
+          <div style="margin-top: 10px; padding: 12px; background-color: var(--bg-primary); border-radius: 8px;">
+            <p style="font-size: 0.88rem; font-weight: 700; margin-bottom: 4px; color: var(--text-main);">Student's Submitted Answer:</p>
+            <p style="font-size: 0.92rem; color: var(--text-main); margin: 0; line-height: 1.4;">"${sub.answer || 'No text submitted.'}"</p>
+            <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 6px;">Submitted at: ${sub.submitted_at || 'Recently'}</p>
+          </div>
+
+          <div style="margin-top: 15px;">
+            <label style="font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 6px;">Teacher Feedback:</label>
+            <textarea id="reviewFeedback_${sub.id}" rows="2" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 2px solid var(--border-thick); font-family: inherit;" placeholder="Provide encouraging feedback or notes for revision...">${sub.teacher_feedback || ''}</textarea>
+
+            <div style="display: flex; gap: 15px; align-items: center; margin-top: 10px;">
+              <div style="width: 160px;">
+                <label style="font-weight: 700; font-size: 0.82rem; display: block; margin-bottom: 4px;">Grade / Marks (0-100):</label>
+                <input type="number" id="reviewMarks_${sub.id}" value="${sub.marks !== null ? sub.marks : ''}" placeholder="e.g. 95" style="width: 100%; padding: 8px; border-radius: 6px; border: 2px solid var(--border-thick);">
+              </div>
+              <button class="btn-3d btn-3d-green" style="margin-top: 18px; font-size: 0.85rem; padding: 8px 16px;" onclick="handleTeacherReviewSubmission(${sub.id})">
+                <i data-lucide="check-circle"></i> Save Review &amp; Grade
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  } catch (err) {
+    container.innerHTML = `<div style="color: red; padding: 20px;">Error loading reviews: ${err.message}</div>`;
+  }
+}
+
+async function handleTeacherReviewSubmission(subId) {
+  const feedbackElem = document.getElementById(`reviewFeedback_${subId}`);
+  const marksElem = document.getElementById(`reviewMarks_${subId}`);
+  const feedback = feedbackElem ? feedbackElem.value.trim() : '';
+  const marks = marksElem ? marksElem.value : null;
+
+  try {
+    const res = await authFetch(`/api/teacher/reviews/${subId}`, {
+      method: 'POST',
+      body: JSON.stringify({ feedback, marks: marks ? parseFloat(marks) : null })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert("Review and grade saved successfully!");
+      loadTeacherReviews();
+    } else {
+      alert(data.message || "Failed to save review.");
+    }
+  } catch (err) {
+    alert("Error saving review: " + err.message);
+  }
+}
+

@@ -15,6 +15,71 @@
 <body>
 
   <!-- ========================================== -->
+  <!-- 0. AUTHENTICATION / LOGIN VIEW             -->
+  <!-- ========================================== -->
+  <div id="loginView" class="app-view">
+    <div class="login-page-container">
+      <div class="card-3d login-card">
+        <div class="login-logo-header">
+          <img src="images/tamil_nadu_emblem_no_text.png" alt="Tamil Nadu Emblem" class="login-logo-img">
+          <h2>DEPARTMENT OF SCHOOL EDUCATION</h2>
+          <p class="login-subtitle">GOVERNMENT OF TAMIL NADU</p>
+        </div>
+
+        <div class="login-title-box">
+          <h3>Welcome Back</h3>
+          <p>Sign in to continue learning</p>
+        </div>
+
+        <div id="loginAlert" class="login-alert" style="display: none;"></div>
+
+        <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+          <div class="form-group">
+            <label for="loginEmail">Email Address</label>
+            <div class="input-with-icon">
+              <i data-lucide="mail"></i>
+              <input type="email" id="loginEmail" placeholder="student@demo.com or teacher@demo.com" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="loginPassword">Password</label>
+            <div class="input-with-icon" style="position: relative;">
+              <i data-lucide="lock"></i>
+              <input type="password" id="loginPassword" placeholder="••••••••" required style="padding-right: 42px;">
+              <button type="button" class="toggle-password-btn" onclick="togglePasswordVisibility('loginPassword', this)" title="Show/Hide Password">
+                <i data-lucide="eye" id="togglePasswordIcon"></i>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" id="loginSubmitBtn" class="btn-3d btn-3d-sky login-submit-btn">
+            <i data-lucide="log-in" id="loginBtnIcon"></i> <span id="loginBtnText">Log In</span>
+          </button>
+        </form>
+
+        <div class="demo-login-shortcuts">
+          <span class="demo-shortcuts-label">Don't have an account?<br>Demo accounts available:</span>
+          <div class="demo-btn-group" style="margin-top: 8px;">
+            <button type="button" class="btn-demo-shortcut student" onclick="fillAndLogin('student@demo.com', 'student123')">
+              <i data-lucide="user"></i> Student Demo
+            </button>
+            <button type="button" class="btn-demo-shortcut teacher" onclick="fillAndLogin('teacher@demo.com', 'teacher123')">
+              <i data-lucide="award"></i> Teacher Demo
+            </button>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 15px;">
+          <button type="button" onclick="switchToLandingView()" style="background: none; border: none; color: var(--text-muted); font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: underline;">
+            &larr; Back to Landing Page
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
   <!-- 1. LANDING PAGE VIEW                       -->
   <!-- ========================================== -->
   <div id="landingView" class="app-view active">
@@ -34,8 +99,8 @@
         <li><a href="#teacher">Teachers</a></li>
       </ul>
       <div class="nav-actions">
-        <button class="btn-3d btn-3d-white" onclick="switchToStudentView('home')">Log In</button>
-        <button class="btn-3d btn-3d-sky" onclick="switchToStudentView('home')">Start Learning</button>
+        <button class="btn-3d btn-3d-white" onclick="showLoginView()">Log In</button>
+        <button class="btn-3d btn-3d-sky" onclick="showLoginView()">Start Learning</button>
       </div>
     </nav>
 
@@ -46,7 +111,7 @@
         <p>Your friendly 24/7 AI Teacher Copilot that helps you understand every lesson, anytime, anywhere. Explaining
           concepts in multiple ways until it makes sense.</p>
         <div class="hero-ctas">
-          <button class="btn-3d btn-3d-orange" onclick="switchToStudentView('home')">
+          <button class="btn-3d btn-3d-orange" onclick="showLoginView()">
             <i data-lucide="sparkles"></i> Start Learning Free
           </button>
           <button class="btn-3d btn-3d-white" onclick="playMockDemo()">
@@ -183,7 +248,7 @@
           <p>Take a picture of any worksheet, notebook, or textbook page. The AI automatically isolates the text and
             builds simple, helpful tutorials around it.</p>
           <div class="feat-demo">
-            <div class="upload-mock-zone" onclick="switchToStudentView('homework')">
+            <div class="upload-mock-zone" onclick="showLoginView()">
               <i data-lucide="upload-cloud"></i>
               <p>Upload textbook page</p>
             </div>
@@ -429,19 +494,16 @@
               <i data-lucide="check-square"></i> <span>AI Quizzes</span>
             </a>
           </li>
-
+          <li class="sidebar-item" id="side-tasks">
+            <a onclick="switchTab('tasks')">
+              <i data-lucide="clipboard-list"></i> <span>My Tasks</span>
+            </a>
+          </li>
         </ul>
 
         <div class="sidebar-footer">
-          <div class="profile-widget" style="padding: 10px 8px;">
-            <div class="profile-avatar">A</div>
-            <div>
-              <p class="profile-name">Aarav</p>
-              <p style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700;">Grade 6 Student</p>
-            </div>
-          </div>
-          <button class="logout-btn" onclick="switchToLandingView()">
-            <i data-lucide="log-out"></i> Go to Landing Page
+          <button class="logout-btn" onclick="logout()">
+            <i data-lucide="log-out"></i> Logout
           </button>
         </div>
       </aside>
@@ -454,14 +516,13 @@
           <div class="dh-left">
             <h2 id="header-tab-title">Home Dashboard</h2>
           </div>
-          <div class="dh-right">
-            <div class="streak-counter">
-              <i data-lucide="flame"></i>
-              <span>5 Day Streak!</span>
+          <div class="dh-right" style="display: flex; align-items: center; gap: 12px;">
+            <div class="user-identity-badge" id="studentIdentityBadge">
+              <i data-lucide="user"></i> <span id="studentUserName">Demo Student</span>
             </div>
-            <div class="profile-widget">
-              <div class="profile-avatar">A</div>
-            </div>
+            <button class="btn-3d btn-3d-orange" style="font-size: 0.8rem; padding: 6px 12px;" onclick="logout()">
+              <i data-lucide="log-out"></i> Logout
+            </button>
           </div>
         </header>
 
@@ -1221,7 +1282,294 @@
             </div>
 
           </div>
+
+          <!-- TAB: MY TASKS -->
+          <div id="tab-tasks" class="dashboard-tab">
+            <div class="card-3d" style="margin-bottom: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <h3 style="margin-bottom: 4px;"><i data-lucide="clipboard-list"></i> My Assigned Tasks</h3>
+                  <p style="font-size: 0.9rem; color: var(--text-muted); margin: 0;">View tasks assigned by your teacher and submit your answers.</p>
+                </div>
+                <button class="btn-3d btn-3d-sky" onclick="loadStudentTasks()"><i data-lucide="refresh-cw"></i> Refresh Tasks</button>
+              </div>
+            </div>
+
+            <div id="studentTasksList">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
       </main>
+
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 3. TEACHER DASHBOARD VIEW                  -->
+  <!-- ========================================== -->
+  <div id="teacherView" class="app-view">
+    <div class="teacher-dashboard-layout">
+
+      <!-- Left Sidebar Navigation -->
+      <aside class="sidebar">
+        <div class="sidebar-logo">
+          <img src="images/tamil_nadu_emblem_no_text.png" alt="Tamil Nadu Emblem" class="logo-icon-img sidebar-logo-img">
+          <div class="logo-text-block sidebar-logo-text-block">
+            <span class="logo-title sidebar-logo-title">DEPARTMENT OF SCHOOL EDUCATION</span>
+            <span class="logo-subtitle sidebar-logo-subtitle">GOVERNMENT OF TAMIL NADU</span>
+          </div>
+        </div>
+
+        <ul class="sidebar-menu">
+          <li class="sidebar-item active" id="teacher-side-dashboard">
+            <a onclick="switchTeacherTab('dashboard')">
+              <i data-lucide="layout-dashboard"></i> <span>Dashboard</span>
+            </a>
+          </li>
+          <li class="sidebar-item" id="teacher-side-add-students">
+            <a onclick="switchTeacherTab('add-students')">
+              <i data-lucide="user-plus"></i> <span>Add Students</span>
+            </a>
+          </li>
+          <li class="sidebar-item" id="teacher-side-view-students">
+            <a onclick="switchTeacherTab('view-students')">
+              <i data-lucide="users"></i> <span>View Students</span>
+            </a>
+          </li>
+          <li class="sidebar-item" id="teacher-side-assign-tasks">
+            <a onclick="switchTeacherTab('assign-tasks')">
+              <i data-lucide="file-plus"></i> <span>Assign Tasks</span>
+            </a>
+          </li>
+          <li class="sidebar-item" id="teacher-side-review-work">
+            <a onclick="switchTeacherTab('review-work')">
+              <i data-lucide="check-circle"></i> <span>Review Work</span>
+            </a>
+          </li>
+        </ul>
+
+        <div class="sidebar-footer">
+          <button class="logout-btn" onclick="logout()">
+            <i data-lucide="log-out"></i> Logout
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Dashboard Content -->
+      <div class="main-content">
+        <header class="dashboard-header">
+          <div class="dh-left">
+            <h2 id="teacher-header-title">Teacher Dashboard</h2>
+          </div>
+          <div class="dh-right" style="display: flex; align-items: center; gap: 12px;">
+            <div class="user-identity-badge">
+              <i data-lucide="award"></i> <span id="teacherUserName">Demo Teacher</span> (Teacher)
+            </div>
+            <button class="btn-3d btn-3d-orange" style="font-size: 0.8rem; padding: 6px 12px;" onclick="logout()">
+              <i data-lucide="log-out"></i> Logout
+            </button>
+          </div>
+        </header>
+
+        <main class="tab-content">
+          <!-- TAB 1: TEACHER DASHBOARD -->
+          <div id="teacher-tab-dashboard" class="dashboard-tab active">
+            <div class="stat-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+              <div class="card-3d stat-card">
+                <i data-lucide="users" style="font-size: 2rem; color: var(--color-sky);"></i>
+                <h4 style="margin-top: 8px;">Total Students</h4>
+                <p style="font-size: 1.8rem; font-weight: 800; color: var(--color-sky-dark);" id="statTotalStudents">0</p>
+              </div>
+              <div class="card-3d stat-card">
+                <i data-lucide="clipboard-list" style="font-size: 2rem; color: var(--color-green);"></i>
+                <h4 style="margin-top: 8px;">Assigned Tasks</h4>
+                <p style="font-size: 1.8rem; font-weight: 800; color: var(--color-green-dark);" id="statTotalTasks">0</p>
+              </div>
+              <div class="card-3d stat-card">
+                <i data-lucide="check-circle" style="font-size: 2rem; color: var(--color-orange);"></i>
+                <h4 style="margin-top: 8px;">Submissions Review</h4>
+                <p style="font-size: 1.8rem; font-weight: 800; color: var(--color-orange-dark);" id="statPendingReviews">0</p>
+              </div>
+            </div>
+
+            <div class="two-col" style="margin-top: 25px;">
+              <div class="card-3d">
+                <h3><i data-lucide="zap"></i> Quick Teacher Actions</h3>
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
+                  <button class="btn-3d btn-3d-sky" onclick="switchTeacherTab('add-students')">
+                    <i data-lucide="user-plus"></i> Add New Student Account
+                  </button>
+                  <button class="btn-3d btn-3d-green" onclick="switchTeacherTab('assign-tasks')">
+                    <i data-lucide="file-plus"></i> Create &amp; Assign Task to Student
+                  </button>
+                  <button class="btn-3d btn-3d-orange" onclick="switchTeacherTab('review-work')">
+                    <i data-lucide="check-circle"></i> Review Student Submissions
+                  </button>
+                </div>
+              </div>
+
+              <div class="card-3d">
+                <h3><i data-lucide="info"></i> Class Overview</h3>
+                <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; margin-top: 10px;">
+                  Welcome! Manage student accounts, assign homework exercises, and review student progress in real-time.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: ADD STUDENTS -->
+          <div id="teacher-tab-add-students" class="dashboard-tab">
+            <div class="card-3d" style="max-width: 600px; margin: 0 auto;">
+              <h3><i data-lucide="user-plus"></i> Add New Student</h3>
+              <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px;">
+                Create a student account. Students can log in using these credentials to complete assignments.
+              </p>
+
+              <div id="addStudentAlert" class="login-alert" style="display: none;"></div>
+
+              <form id="addStudentForm" onsubmit="handleCreateStudent(event)">
+                <div class="form-group">
+                  <label for="newStudentName">Student Full Name</label>
+                  <div class="input-with-icon">
+                    <i data-lucide="user"></i>
+                    <input type="text" id="newStudentName" placeholder="e.g. Aarav Kumar" required>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="newStudentEmail">Student Email</label>
+                  <div class="input-with-icon">
+                    <i data-lucide="mail"></i>
+                    <input type="email" id="newStudentEmail" placeholder="e.g. aarav@school.com" required>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="newStudentPassword">Password</label>
+                  <div class="input-with-icon">
+                    <i data-lucide="lock"></i>
+                    <input type="password" id="newStudentPassword" placeholder="••••••••" required>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn-3d btn-3d-green" style="width: 100%; padding: 12px;">
+                  <i data-lucide="user-plus"></i> Create Student Account
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- TAB 3: VIEW STUDENTS -->
+          <div id="teacher-tab-view-students" class="dashboard-tab">
+            <div class="card-3d">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <h3 style="margin-bottom: 4px;"><i data-lucide="users"></i> Registered Students</h3>
+                  <p style="font-size: 0.9rem; color: var(--text-muted); margin: 0;">Students enrolled under your supervision.</p>
+                </div>
+                <button class="btn-3d btn-3d-sky" onclick="loadTeacherStudents()"><i data-lucide="refresh-cw"></i> Refresh List</button>
+              </div>
+
+              <div style="overflow-x: auto; margin-top: 15px;">
+                <table class="table-3d">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Student Name</th>
+                      <th>Email</th>
+                      <th>Assigned Tasks</th>
+                      <th>Completed</th>
+                      <th>Role</th>
+                    </tr>
+                  </thead>
+                  <tbody id="teacherStudentsTableBody">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 4: ASSIGN TASKS -->
+          <div id="teacher-tab-assign-tasks" class="dashboard-tab">
+            <div class="card-3d" style="max-width: 650px; margin: 0 auto;">
+              <h3><i data-lucide="file-plus"></i> Assign Task to Student</h3>
+              <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px;">
+                Assign a homework exercise or math problem to a student.
+              </p>
+
+              <div id="assignTaskAlert" class="login-alert" style="display: none;"></div>
+
+              <form id="assignTaskForm" onsubmit="handleAssignTask(event)">
+                <div class="form-group">
+                  <label for="taskStudentSelect">Select Student</label>
+                  <div class="input-with-icon">
+                    <i data-lucide="user"></i>
+                    <select id="taskStudentSelect" required>
+                      <!-- Options loaded dynamically -->
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="taskSubjectInput">Subject</label>
+                  <div class="input-with-icon">
+                    <i data-lucide="book"></i>
+                    <input type="text" id="taskSubjectInput" placeholder="e.g. Science / Mathematics" required>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="taskTitleInput">Task Title</label>
+                  <div class="input-with-icon">
+                    <i data-lucide="edit-3"></i>
+                    <input type="text" id="taskTitleInput" placeholder="e.g. Solve Algebra Chapter 4 Exercises" required>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="taskDescriptionInput">Description &amp; Instructions</label>
+                  <div class="input-with-icon">
+                    <i data-lucide="align-left"></i>
+                    <textarea id="taskDescriptionInput" rows="4" placeholder="Enter clear instructions for the student..." required></textarea>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="taskDueDateInput">Due Date (Optional)</label>
+                  <div class="input-with-icon">
+                    <i data-lucide="calendar"></i>
+                    <input type="date" id="taskDueDateInput">
+                  </div>
+                </div>
+
+                <button type="submit" class="btn-3d btn-3d-sky" style="width: 100%; padding: 12px;">
+                  <i data-lucide="send"></i> Assign Task to Student
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- TAB 5: REVIEW WORK -->
+          <div id="teacher-tab-review-work" class="dashboard-tab">
+            <div class="card-3d">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div>
+                  <h3 style="margin-bottom: 4px;"><i data-lucide="check-circle"></i> Review Student Submissions</h3>
+                  <p style="font-size: 0.9rem; color: var(--text-muted); margin: 0;">Evaluate homework submitted by students.</p>
+                </div>
+                <button class="btn-3d btn-3d-sky" onclick="loadTeacherReviews()"><i data-lucide="refresh-cw"></i> Refresh Submissions</button>
+              </div>
+
+              <div id="teacherReviewsList">
+                <!-- Submissions rendered dynamically -->
+              </div>
+            </div>
+          </div>
+
+        </main>
+      </div>
 
     </div>
   </div>
@@ -1246,7 +1594,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 
 </html>
