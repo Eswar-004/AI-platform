@@ -20,8 +20,8 @@ app.register_blueprint(story_bp, url_prefix="/api/story")
 
 @app.route("/health", methods=["GET"])
 def health_check():
-    return {"status": "ok", "message": "EduMate AI backend is running"}, 200
+    return {"status": "ok", "message": "AI backend is running"}, 200
 
 if __name__ == "__main__":
-    print(f"Starting EduMate AI backend on port {Config.PORT}...")
+    print(f"Starting AI backend on port {Config.PORT}...")
     app.run(host="0.0.0.0", port=Config.PORT, debug=Config.DEBUG)
