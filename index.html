@@ -7,7 +7,7 @@
   <title>AI - Your 24/7 AI Teacher Copilot</title>
   <meta name="description"
     content="A student-friendly AI Teacher Copilot that explains lessons in multiple ways, helping students understand concepts after school.">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=6">
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -61,10 +61,10 @@
         <div class="demo-login-shortcuts">
           <span class="demo-shortcuts-label">Don't have an account?<br>Demo accounts available:</span>
           <div class="demo-btn-group" style="margin-top: 8px;">
-            <button type="button" class="btn-demo-shortcut student" onclick="fillAndLogin('student@demo.com', 'student123')">
+            <button type="button" class="btn-demo-shortcut student" onclick="fillDemoCredentials('student@demo.com', 'student123')">
               <i data-lucide="user"></i> Student Demo
             </button>
-            <button type="button" class="btn-demo-shortcut teacher" onclick="fillAndLogin('teacher@demo.com', 'teacher123')">
+            <button type="button" class="btn-demo-shortcut teacher" onclick="fillDemoCredentials('teacher@demo.com', 'teacher123')">
               <i data-lucide="award"></i> Teacher Demo
             </button>
           </div>
@@ -1594,7 +1594,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=6"></script>
 </body>
 
 </html>

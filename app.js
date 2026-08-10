@@ -7,7 +7,7 @@ const BACKEND_BASE_URL = "http://localhost:5000";
 const API_BASE_URL = `${BACKEND_BASE_URL}/api/ai`;
 
 // Global Auth State
-let authToken = localStorage.getItem('authToken') || null;
+let authToken = localStorage.getItem('access_token') || localStorage.getItem('authToken') || null;
 let currentUser = null;
 let isLoggingIn = false;
 
@@ -1343,16 +1343,20 @@ function togglePasswordVisibility(inputId, btnElem) {
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-function fillAndLogin(email, password) {
+function fillDemoCredentials(email, password) {
   const emailInput = document.getElementById('loginEmail');
   const passInput = document.getElementById('loginPassword');
   if (emailInput) emailInput.value = email;
   if (passInput) passInput.value = password;
-  performLogin(email, password);
+  const alertBox = document.getElementById('loginAlert');
+  if (alertBox) alertBox.style.display = 'none';
 }
 
 function handleLoginSubmit(event) {
-  event.preventDefault();
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
   const emailInput = document.getElementById('loginEmail');
   const passInput = document.getElementById('loginPassword');
   const email = emailInput ? emailInput.value.trim() : '';
@@ -1381,44 +1385,24 @@ async function performLogin(email, password) {
   if (btnIcon) btnIcon.setAttribute('data-lucide', 'loader');
   if (typeof lucide !== 'undefined') lucide.createIcons();
 
+  let res = null;
+  let data = null;
+
+  // 1. Network Request Layer
   try {
-    const res = await fetch(`${BACKEND_BASE_URL}/api/auth/login`, {
+    res = await fetch(`${BACKEND_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-
-    const data = await res.json();
-
-    if (!res.ok || !data.success) {
-      if (alertBox) {
-        alertBox.className = 'login-alert alert-danger';
-        alertBox.textContent = data.message || 'Invalid email or password.';
-        alertBox.style.display = 'block';
-      }
-      return;
-    }
-
-    // Store JWT token & user
-    authToken = data.token;
-    currentUser = data.user;
-    localStorage.setItem('authToken', authToken);
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-
-    // Redirect based on role returned by backend
-    if (currentUser.role === 'teacher') {
-      switchToTeacherView('dashboard');
-    } else {
-      switchToStudentView('home');
-    }
-
-  } catch (err) {
+    data = await res.json();
+  } catch (netErr) {
+    console.error("Network connection failure:", netErr);
     if (alertBox) {
       alertBox.className = 'login-alert alert-danger';
       alertBox.textContent = 'Unable to connect to the server. Please check if Flask backend is running on port 5000.';
       alertBox.style.display = 'block';
     }
-  } finally {
     isLoggingIn = false;
     if (submitBtn) submitBtn.disabled = false;
     if (emailInput) emailInput.disabled = false;
@@ -1426,6 +1410,64 @@ async function performLogin(email, password) {
     if (btnText) btnText.textContent = "Log In";
     if (btnIcon) btnIcon.setAttribute('data-lucide', 'log-in');
     if (typeof lucide !== 'undefined') lucide.createIcons();
+    return;
+  }
+
+  // 2. Response Status Layer
+  if (!res.ok || !data || data.success === false) {
+    if (alertBox) {
+      alertBox.className = 'login-alert alert-danger';
+      if (res.status === 401) {
+        alertBox.textContent = data.message || 'Invalid email or password.';
+      } else if (res.status === 403) {
+        alertBox.textContent = 'Access denied. You do not have permission to access this page.';
+      } else {
+        alertBox.textContent = data.message || `Server error (${res.status}). Please try again later.`;
+      }
+      alertBox.style.display = 'block';
+    }
+    isLoggingIn = false;
+    if (submitBtn) submitBtn.disabled = false;
+    if (emailInput) emailInput.disabled = false;
+    if (passInput) passInput.disabled = false;
+    if (btnText) btnText.textContent = "Log In";
+    if (btnIcon) btnIcon.setAttribute('data-lucide', 'log-in');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    return;
+  }
+
+  // 3. Login Successful (HTTP 200)
+  authToken = data.token || data.access_token;
+  currentUser = data.user;
+  localStorage.setItem('access_token', authToken);
+  localStorage.setItem('authToken', authToken);
+  localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+  console.log("LOGIN SUBMIT:", email);
+  console.log("LOGIN RESPONSE STATUS:", res.status);
+  console.log("LOGIN RESPONSE BODY:", data);
+  console.log("TOKEN RECEIVED:", authToken);
+  console.log("USER ROLE:", currentUser ? currentUser.role : null);
+
+  // Reset loading state controls
+  isLoggingIn = false;
+  if (submitBtn) submitBtn.disabled = false;
+  if (emailInput) emailInput.disabled = false;
+  if (passInput) passInput.disabled = false;
+  if (btnText) btnText.textContent = "Log In";
+  if (btnIcon) btnIcon.setAttribute('data-lucide', 'log-in');
+
+  // 4. View Redirection Layer
+  try {
+    if (currentUser && currentUser.role === 'teacher') {
+      console.log("REDIRECTING TO TEACHER DASHBOARD");
+      switchToTeacherView('dashboard');
+    } else {
+      console.log("REDIRECTING TO STUDENT DASHBOARD");
+      switchToStudentView('home');
+    }
+  } catch (uiErr) {
+    console.error("UI navigation error:", uiErr);
   }
 }
 
@@ -1440,9 +1482,39 @@ async function logout(callApi = true) {
   }
   authToken = null;
   currentUser = null;
+  localStorage.removeItem('access_token');
   localStorage.removeItem('authToken');
   localStorage.removeItem('currentUser');
   switchToLandingView();
+}
+
+function switchToLandingView() {
+  hideAllViews();
+  const landing = document.getElementById('landingView');
+  if (landing) landing.classList.add('active');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function switchToStudentView(initialTab = 'home') {
+  if (!authToken || !currentUser) {
+    showLoginView();
+    return;
+  }
+  if (currentUser.role !== 'student') {
+    switchToTeacherView('dashboard');
+    return;
+  }
+  hideAllViews();
+  const sView = document.getElementById('studentView');
+  if (sView) sView.classList.add('active');
+
+  const userNameElem = document.getElementById('studentUserName');
+  if (userNameElem && currentUser) {
+    userNameElem.textContent = currentUser.name;
+  }
+
+  switchTab(initialTab);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function switchToTeacherView(initialTab = 'dashboard') {
