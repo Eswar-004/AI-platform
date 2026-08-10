@@ -96,12 +96,11 @@ function appendChatMessage(sender, content, key = null) {
   const msg = document.createElement('div');
   msg.className = `chat-msg ${sender}`;
 
-  const avatar = document.createElement('div');
-  avatar.className = 'msg-avatar';
-  if (sender === 'ai') {
-    avatar.innerHTML = `<div class="bot-avatar" style="width: 32px; height: 32px; font-size: 1rem;">🤖</div>`;
-  } else {
+  if (sender !== 'ai') {
+    const avatar = document.createElement('div');
+    avatar.className = 'msg-avatar';
     avatar.innerHTML = `<div class="profile-avatar" style="width: 32px; height: 32px; font-size: 0.9rem;">A</div>`;
+    msg.appendChild(avatar);
   }
 
   const bubble = document.createElement('div');
@@ -143,7 +142,6 @@ function appendChatMessage(sender, content, key = null) {
     bubble.insertBefore(audioWidget, bubble.firstChild);
   }
 
-  msg.appendChild(avatar);
   msg.appendChild(bubble);
   history.appendChild(msg);
   history.scrollTop = history.scrollHeight;
@@ -340,7 +338,6 @@ function showAiTypingIndicator() {
   indicator.className = 'chat-msg ai typing-indicator-msg';
   indicator.id = 'aiTypingIndicator';
   indicator.innerHTML = `
-    <div class="msg-avatar"><div class="bot-avatar" style="width: 32px; height: 32px; font-size: 1rem;">🤖</div></div>
     <div class="msg-bubble" style="padding: 10px 15px; font-style: italic;">
       <span>Thinking...</span>
     </div>
