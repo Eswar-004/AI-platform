@@ -11,7 +11,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import Config
 
 
-<<<<<<< HEAD
 def sanitize_prompt_text(text: str) -> str:
     """Normalize unicode characters (like subscripts CO2, smart quotes) for clean URL encoding."""
     if not text:
@@ -30,7 +29,7 @@ def sanitize_prompt_text(text: str) -> str:
 
 def get_curated_topic_image(topic: str, slide_number: int = 1) -> str:
     """Provide high quality educational fallback image based on topic keyword."""
-    t = topic.lower()
+    t = topic.lower() if topic else "science"
     
     # Topic specific curated educational collections
     nature_photos = [
@@ -63,11 +62,11 @@ def get_curated_topic_image(topic: str, slide_number: int = 1) -> str:
     ]
 
     idx = (slide_number - 1) % 5
-    if any(k in t for k in ['photo', 'plant', 'leaf', 'tree', 'sun', 'forest', 'chlorophyll']):
+    if any(k in t for k in ['photo', 'plant', 'leaf', 'tree', 'sun', 'forest', 'chlorophyll', 'bio']):
         return nature_photos[idx]
-    elif any(k in t for k in ['water', 'rain', 'evap', 'cloud', 'ocean', 'river', 'cycle']):
+    elif any(k in t for k in ['water', 'rain', 'evap', 'cloud', 'ocean', 'river', 'cycle', 'liquid']):
         return water_photos[idx]
-    elif any(k in t for k in ['space', 'solar', 'planet', 'star', 'sun', 'moon', 'galaxy']):
+    elif any(k in t for k in ['space', 'solar', 'planet', 'star', 'moon', 'galaxy', 'universe']):
         return space_photos[idx]
     elif any(k in t for k in ['grav', 'force', 'atom', 'physics', 'energy', 'light', 'magnet', 'volcano', 'fraction', 'math']):
         return physics_photos[idx]
@@ -75,20 +74,6 @@ def get_curated_topic_image(topic: str, slide_number: int = 1) -> str:
         return nature_photos[idx]
 
 
-def generate_single_image(image_prompt: str, style_context: str = "", slide_number: int = 1) -> dict:
-    """
-    Generate an educational image for a single slide using the configured provider.
-    Returns: { "success": bool, "image_url": str, "provider": str, "slide_number": int, "fallback_url": str }
-    """
-    if not image_prompt or not image_prompt.strip():
-        return {
-            "success": False,
-            "error": "Image prompt is empty.",
-            "slide_number": slide_number,
-            "image_url": None,
-            "fallback_url": get_curated_topic_image("science", slide_number)
-        }
-=======
 def generate_scene_svg_fallback(scene_description: str, slide_number: int = 1) -> str:
     """
     Generate a dynamic, high-clarity educational visual vector data URL built directly 
@@ -146,84 +131,40 @@ def generate_scene_svg_fallback(scene_description: str, slide_number: int = 1) -
 
 def generate_single_image(image_prompt: str, style_context: str = "", slide_number: int = 1, subtitle: str = "") -> dict:
     """
-    Generate a real, scene-specific AI educational image derived directly from the slide's explanation text.
-    Returns: { "success": bool, "image_url": str, "provider": str, "slide_number": int }
+    Generate an educational image for a single slide using the configured provider.
+    Returns: { "success": bool, "image_url": str, "provider": str, "slide_number": int, "fallback_url": str }
     """
-    # 1. Derive scene description directly from specific slide explanation text
     scene_text = image_prompt if (image_prompt and len(image_prompt.strip()) > 10) else subtitle
     if not scene_text or not scene_text.strip():
         scene_text = f"Educational concept scene for step {slide_number}"
 
-    clean_scene = scene_text.encode('ascii', 'ignore').decode('ascii').strip()
-    clean_style = (style_context or "Clean colorful educational textbook illustration").encode('ascii', 'ignore').decode('ascii').strip()
-
-    # Construct rich, classroom-friendly AI image prompt without watermarks
-    full_prompt = (
-        f"{clean_style}. {clean_scene}. "
-        "Bright clear visual, highly detailed classroom-friendly science illustration, "
-        "vivid colors, 16:9 aspect ratio, no text, no letters, no watermark, no logo, no signature."
-    )
->>>>>>> 77aa3c1bb7066e64a6c29db416efab94db046604
+    clean_scene = sanitize_prompt_text(scene_text)
+    clean_style = sanitize_prompt_text(style_context if style_context else "Charming colorful children's book illustration, vibrant friendly characters, soft warm lighting")
+    
+    full_prompt = f"{clean_style}. {clean_scene}. Vibrant colorful digital art, storybook scene, no text, no words, no labels, 16:9 aspect ratio."
+    fallback_image = get_curated_topic_image(clean_scene, slide_number)
 
     provider = Config.IMAGE_PROVIDER.lower()
     width = 800
     height = 450
 
-<<<<<<< HEAD
-    clean_style = sanitize_prompt_text(style_context.strip() if style_context else "Charming colorful children's book illustration, vibrant friendly characters, soft warm lighting")
-    clean_prompt = sanitize_prompt_text(image_prompt.strip())
-    
-    full_prompt = f"{clean_style}. {clean_prompt}. Vibrant colorful digital art, storybook scene, no text, no words, no labels, 16:9 aspect ratio."
-    fallback_image = get_curated_topic_image(clean_prompt, slide_number)
-
     try:
-        if provider == "pollinations":
-            encoded_prompt = urllib.parse.quote(full_prompt)
-            seed = random.randint(1000, 999999)
-            # Use fast pollinations parameters without flux to avoid 429 rate limit timeouts
-            image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&seed={seed}&nologo=true"
-            
-            return {
-                "success": True,
-                "image_url": image_url,
-                "fallback_url": fallback_image,
-                "provider": "pollinations",
-                "slide_number": slide_number
-            }
-
-        elif provider == "huggingface":
-            if not Config.IMAGE_API_KEY:
-                return {
-                    "success": False,
-                    "error": "IMAGE_API_KEY is missing in backend/.env for Hugging Face provider.",
-                    "slide_number": slide_number,
-                    "image_url": None
-                }
-            
-=======
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-    }
-
-    try:
-        # Check configured HuggingFace or OpenAI API keys if provided
         if provider == "huggingface" and Config.IMAGE_API_KEY:
->>>>>>> 77aa3c1bb7066e64a6c29db416efab94db046604
-            hf_url = f"https://api-inference.huggingface.co/models/{model}"
-            hf_headers = {"Authorization": f"Bearer {Config.IMAGE_API_KEY}"}
-            res = requests.post(hf_url, headers=hf_headers, json={"inputs": full_prompt}, timeout=20)
+            hf_url = f"https://api-inference.huggingface.co/models/{Config.IMAGE_MODEL}"
+            headers = {"Authorization": f"Bearer {Config.IMAGE_API_KEY}"}
+            res = requests.post(hf_url, headers=headers, json={"inputs": full_prompt}, timeout=20)
             if res.status_code == 200 and res.content:
                 img_b64 = base64.b64encode(res.content).decode("utf-8")
                 return {
                     "success": True,
                     "image_url": f"data:image/jpeg;base64,{img_b64}",
-                    "provider": "huggingface_ai",
+                    "fallback_url": fallback_image,
+                    "provider": "huggingface",
                     "slide_number": slide_number
                 }
 
         elif provider == "openai" and Config.IMAGE_API_KEY:
-            oai_headers = {
+            headers = {
                 "Authorization": f"Bearer {Config.IMAGE_API_KEY}",
                 "Content-Type": "application/json"
             }
@@ -233,68 +174,45 @@ def generate_single_image(image_prompt: str, style_context: str = "", slide_numb
                 "n": 1,
                 "size": f"{width}x{height}"
             }
-            res = requests.post("https://api.openai.com/v1/images/generations", headers=oai_headers, json=payload, timeout=20)
+            res = requests.post("https://api.openai.com/v1/images/generations", headers=headers, json=payload, timeout=20)
             if res.status_code == 200:
                 data = res.json()
                 img_url = data["data"][0]["url"]
                 return {
                     "success": True,
                     "image_url": img_url,
-                    "provider": "openai_dalle3",
+                    "fallback_url": fallback_image,
+                    "provider": "openai",
                     "slide_number": slide_number
                 }
 
-        # Pure Text-to-Image AI API: Pollinations AI with nologo=true
-        encoded_prompt = urllib.parse.quote(full_prompt[:260])
+        # Pollinations AI Direct Image URL
+        encoded_prompt = urllib.parse.quote(full_prompt[:280])
         seed = random.randint(1000, 999999)
-        direct_ai_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=800&height=450&seed={seed}&nologo=true"
-
-        pollinations_urls = [
-            direct_ai_url,
-            f"https://image.pollinations.ai/prompt/{urllib.parse.quote(clean_scene[:150])}?width=800&height=450&seed={seed}&nologo=true"
-        ]
-
-        for attempt_idx, url in enumerate(pollinations_urls):
-            try:
-                res = requests.get(url, timeout=12, headers=headers)
-                if res.status_code == 200 and res.content and res.headers.get('Content-Type', '').startswith('image/') and len(res.content) > 4000:
-                    img_b64 = base64.b64encode(res.content).decode("utf-8")
-                    mime_type = res.headers.get('Content-Type', 'image/jpeg')
-                    return {
-                        "success": True,
-                        "image_url": f"data:{mime_type};base64,{img_b64}",
-                        "provider": "pollinations_ai",
-                        "slide_number": slide_number
-                    }
-                else:
-                    print(f"Slide {slide_number} AI attempt {attempt_idx+1} HTTP {res.status_code}: {res.text[:150]}", file=sys.stderr)
-            except Exception as pe:
-                print(f"Slide {slide_number} Pollinations AI attempt {attempt_idx+1} exception: {pe}", file=sys.stderr)
-
-        # Primary return: Direct working AI image URL for client browser rendering
+        image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&seed={seed}&nologo=true"
+        
         return {
             "success": True,
-            "image_url": direct_ai_url,
-            "provider": "pollinations_direct_ai",
+            "image_url": image_url,
+            "fallback_url": fallback_image,
+            "provider": "pollinations",
             "slide_number": slide_number
         }
 
     except Exception as e:
-        print(f"AI image generation error for slide {slide_number}: {e}", file=sys.stderr)
-
-    # Error state visual fallback (only if exception thrown)
-    fallback_url = generate_scene_svg_fallback(clean_scene, slide_number)
-    return {
-        "success": True,
-        "image_url": fallback_url,
-        "provider": "scene_specific_educational_fallback",
-        "slide_number": slide_number
-    }
+        print(f"Image generation error for slide {slide_number}: {e}", file=sys.stderr)
+        return {
+            "success": True,
+            "image_url": fallback_image or generate_scene_svg_fallback(clean_scene, slide_number),
+            "fallback_url": fallback_image,
+            "provider": "curated_educational_fallback",
+            "slide_number": slide_number
+        }
 
 
 def generate_images_parallel(slides: list, shared_style_context: str = "") -> dict:
     """
-    Generate real AI images for all slides sequentially (1 at a time) to prevent API rate limiting (max 1 per IP).
+    Generate images for all slides concurrently.
     Returns dictionary mapping slide_number (1-indexed) -> image result dict.
     """
     results = {}
@@ -311,14 +229,13 @@ def generate_images_parallel(slides: list, shared_style_context: str = "") -> di
             results[slide_num] = img_res
         except Exception as exc:
             print(f"Image generation exception for slide {slide_num}: {exc}", file=sys.stderr)
-            fallback_url = generate_scene_svg_fallback(f"Slide {slide_num} Concept", slide_num)
+            fallback_img = get_curated_topic_image(prompt or sub, slide_num)
             results[slide_num] = {
                 "success": True,
-                "image_url": fallback_url,
-                "provider": "scene_specific_educational_fallback",
+                "image_url": fallback_img,
+                "fallback_url": fallback_img,
+                "provider": "fallback",
                 "slide_number": slide_num
             }
 
     return results
-
-
