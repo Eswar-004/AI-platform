@@ -11,6 +11,20 @@ let authToken = localStorage.getItem('access_token') || localStorage.getItem('au
 let currentUser = null;
 let isLoggingIn = false;
 
+// HTML Escaping Utility for XSS Prevention and safe rendering
+function escapeHtml(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 try {
   const savedUser = localStorage.getItem('currentUser');
   if (savedUser) currentUser = JSON.parse(savedUser);
@@ -1601,7 +1615,8 @@ function switchTeacherTab(tabName) {
     'add-students': 'Add New Student',
     'view-students': 'Registered Students & Progress',
     'assign-tasks': 'Assign Homework Task',
-    'review-work': 'Review Student Submissions'
+    'review-work': 'Review Student Submissions',
+    'ai-story': 'AI Story Creation'
   };
   const titleElem = document.getElementById('teacher-header-title');
   if (titleElem) titleElem.textContent = titleMap[tabName] || 'Teacher Dashboard';
@@ -1963,4 +1978,271 @@ async function handleTeacherReviewSubmission(subId) {
     alert("Error saving review: " + err.message);
   }
 }
+
+
+// ==========================================
+// AI STORY CREATION MODULE
+// ==========================================
+let currentStoryData = null;
+let currentSlideIndex = 0;
+
+async function handleGenerateStory(event) {
+  if (event) event.preventDefault();
+
+  const topicInput = document.getElementById('storyTopicInput');
+  const gradeSelect = document.getElementById('storyGradeSelect');
+  const slidesSelect = document.getElementById('storySlidesSelect');
+  const statusAlert = document.getElementById('storyStatusAlert');
+  const carouselContainer = document.getElementById('storyCarouselContainer');
+  const submitBtn = document.getElementById('generateStoryBtn');
+  const btnText = document.getElementById('generateStoryBtnText');
+
+  const topic = topicInput ? topicInput.value.trim() : '';
+  const grade = gradeSelect ? gradeSelect.value : '6th Standard';
+  const slide_count = slidesSelect ? parseInt(slidesSelect.value) : 5;
+
+  if (!topic) {
+    if (statusAlert) {
+      statusAlert.style.display = 'block';
+      statusAlert.style.backgroundColor = '#fef2f2';
+      statusAlert.style.color = '#dc2626';
+      statusAlert.style.border = '1px solid #fca5a5';
+      statusAlert.innerHTML = '<i data-lucide="alert-circle"></i> Please enter an educational topic (e.g. Evaporation).';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+    return;
+  }
+
+  // Set progressive loading state
+  if (submitBtn) submitBtn.disabled = true;
+  if (btnText) btnText.textContent = 'Generating Story with AI...';
+  if (statusAlert) {
+    statusAlert.style.display = 'block';
+    statusAlert.style.backgroundColor = '#eff6ff';
+    statusAlert.style.color = '#1d4ed8';
+    statusAlert.style.border = '1px solid #93c5fd';
+    statusAlert.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; gap:10px;"><span class="loading-spinner"></span> Step 1/2: Understanding topic & creating educational storyboard...</div>';
+  }
+  if (carouselContainer) carouselContainer.style.display = 'none';
+
+  const statusTimer = setTimeout(() => {
+    if (submitBtn && submitBtn.disabled && statusAlert) {
+      statusAlert.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; gap:10px;"><span class="loading-spinner"></span> Step 2/2: Generating AI educational illustrations in parallel...</div>';
+    }
+  }, 2200);
+
+  try {
+    const res = await authFetch('/api/story/generate', {
+      method: 'POST',
+      body: JSON.stringify({
+        topic: topic,
+        grade: grade,
+        slide_count: slide_count
+      })
+    });
+
+    clearTimeout(statusTimer);
+    const data = await res.json();
+
+    if (res.ok && data.success && data.story) {
+      currentStoryData = data.story;
+      currentSlideIndex = 0;
+
+      if (statusAlert) statusAlert.style.display = 'none';
+      renderStoryCarousel();
+      if (carouselContainer) carouselContainer.style.display = 'block';
+    } else {
+      throw new Error(data.message || 'Failed to generate story.');
+    }
+  } catch (err) {
+    clearTimeout(statusTimer);
+    if (statusAlert) {
+      statusAlert.style.display = 'block';
+      statusAlert.style.backgroundColor = '#fef2f2';
+      statusAlert.style.color = '#dc2626';
+      statusAlert.style.border = '1px solid #fca5a5';
+      statusAlert.innerHTML = `<i data-lucide="alert-triangle"></i> ${escapeHtml(err.message)}`;
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+    if (btnText) btnText.textContent = 'Generate Story';
+  }
+}
+
+function renderStoryCarousel() {
+  const container = document.getElementById('storyCarouselContainer');
+  if (!container || !currentStoryData || !currentStoryData.slides || currentStoryData.slides.length === 0) return;
+
+  const slides = currentStoryData.slides;
+  const totalSlides = slides.length;
+  if (currentSlideIndex < 0) currentSlideIndex = 0;
+  if (currentSlideIndex >= totalSlides) currentSlideIndex = totalSlides - 1;
+
+  const slide = slides[currentSlideIndex];
+
+  let dotsHtml = '';
+  for (let i = 0; i < totalSlides; i++) {
+    const isActive = i === currentSlideIndex;
+    dotsHtml += `
+      <button onclick="goToStorySlide(${i})" 
+              title="Slide ${i + 1}"
+              style="width: ${isActive ? '28px' : '10px'}; height: 10px; border-radius: 6px; background: ${isActive ? '#8b5cf6' : '#cbd5e1'}; border: none; cursor: pointer; transition: all 0.3s ease;">
+      </button>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="card-3d story-carousel-card" style="padding: 24px; border: 2px solid #e2e8f0; background: #ffffff; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);">
+      
+      <!-- Top Title & Badge Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">
+        <div>
+          <h3 style="margin: 0; font-size: 1.3rem; color: #1e293b;">${escapeHtml(currentStoryData.title || ('Story: ' + currentStoryData.topic))}</h3>
+          <span style="font-size: 0.85rem; color: #64748b;">Topic: <strong>${escapeHtml(currentStoryData.topic)}</strong></span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <span style="background: #f3e8ff; color: #7e22ce; font-weight: 700; font-size: 0.8rem; padding: 4px 10px; border-radius: 20px;">
+            <i data-lucide="graduation-cap" style="width: 14px; height: 14px; vertical-align: middle;"></i> ${escapeHtml(currentStoryData.grade)}
+          </span>
+          <span style="background: #e0f2fe; color: #0369a1; font-weight: 700; font-size: 0.8rem; padding: 4px 10px; border-radius: 20px;">
+            Slide ${slide.slide_number || (currentSlideIndex + 1)} of ${totalSlides}
+          </span>
+        </div>
+      </div>
+
+      <!-- Slide Main Canvas Card -->
+      <div class="carousel-slide-content" style="background: #f8fafc; border-radius: 14px; padding: 20px; border: 1.5px solid #e2e8f0; margin-bottom: 20px;">
+        
+        <!-- Actual AI Image Frame (16:9 Aspect Ratio) -->
+        <div class="illustration-frame" style="width: 100%; aspect-ratio: 16 / 9; max-height: 420px; border-radius: 12px; overflow: hidden; background: #0f172a; border: 1.5px solid #cbd5e1; margin-bottom: 18px; position: relative; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+          ${slide.image_url && slide.image_status !== 'failed' ? `
+            <img src="${escapeHtml(slide.image_url)}" 
+                 alt="Educational Illustration for ${escapeHtml(currentStoryData.topic)}" 
+                 style="width: 100%; height: 100%; object-fit: contain; display: block;" 
+                 onerror="handleSlideImageError(this, ${currentStoryData.id || 0}, ${slide.slide_number})" />
+          ` : `
+            <div style="padding: 30px; text-align: center; color: #94a3b8; width: 100%;">
+              <i data-lucide="image-off" style="width: 42px; height: 42px; margin-bottom: 8px; color: #ef4444;"></i>
+              <p style="font-weight: 700; color: #cbd5e1; margin: 0 0 10px 0;">Illustration unavailable</p>
+              <button onclick="retrySlideImage(${currentStoryData.id || 0}, ${slide.slide_number})" class="btn-3d btn-3d-purple" style="font-size: 0.85rem; padding: 6px 14px;">
+                <i data-lucide="refresh-cw"></i> Retry Image
+              </button>
+            </div>
+          `}
+        </div>
+
+        <!-- Subtitle Box (Placed strictly BELOW the image frame) -->
+        <div class="subtitle-box" style="background: #ffffff; padding: 18px 22px; border-radius: 10px; border-left: 4px solid #8b5cf6; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+          <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #8b5cf6; letter-spacing: 0.5px; margin-bottom: 6px;">
+            Slide ${slide.slide_number || (currentSlideIndex + 1)} Explanation
+          </div>
+          <p id="slideSubtitleText" style="font-size: 1.15rem; line-height: 1.55; color: #1e293b; margin: 0; font-weight: 600;">
+            ${escapeHtml(slide.subtitle)}
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Carousel Navigation Controls -->
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
+        <button onclick="prevStorySlide()" class="btn-3d" ${currentSlideIndex === 0 ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''} style="padding: 10px 20px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+          <i data-lucide="chevron-left"></i> Previous
+        </button>
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+          ${dotsHtml}
+        </div>
+
+        <button onclick="nextStorySlide()" class="btn-3d btn-3d-purple" ${currentSlideIndex === totalSlides - 1 ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''} style="padding: 10px 20px; font-weight: 700; display: flex; align-items: center; gap: 6px; background-color: #8b5cf6; border-color: #7c3aed; color: #fff;">
+          Next <i data-lucide="chevron-right"></i>
+        </button>
+      </div>
+
+    </div>
+  `;
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function prevStorySlide() {
+  if (currentStoryData && currentSlideIndex > 0) {
+    currentSlideIndex--;
+    renderStoryCarousel();
+  }
+}
+
+function nextStorySlide() {
+  if (currentStoryData && currentStoryData.slides && currentSlideIndex < currentStoryData.slides.length - 1) {
+    currentSlideIndex++;
+    renderStoryCarousel();
+  }
+}
+
+function goToStorySlide(idx) {
+  if (currentStoryData && currentStoryData.slides && idx >= 0 && idx < currentStoryData.slides.length) {
+    currentSlideIndex = idx;
+    renderStoryCarousel();
+  }
+}
+
+function handleSlideImageError(imgElem, storyId, slideNumber) {
+  if (!imgElem || !imgElem.parentNode) return;
+  const frame = imgElem.parentNode;
+  frame.innerHTML = `
+    <div style="padding: 30px; text-align: center; color: #94a3b8; width: 100%;">
+      <i data-lucide="image-off" style="width: 42px; height: 42px; margin-bottom: 8px; color: #ef4444;"></i>
+      <p style="font-weight: 700; color: #cbd5e1; margin: 0 0 10px 0;">Illustration unavailable</p>
+      <button onclick="retrySlideImage(${storyId}, ${slideNumber})" class="btn-3d btn-3d-purple" style="font-size: 0.85rem; padding: 6px 14px;">
+        <i data-lucide="refresh-cw"></i> Retry Image
+      </button>
+    </div>
+  `;
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function retrySlideImage(storyId, slideNumber) {
+  if (!storyId) return;
+  const alertBox = document.getElementById('storyStatusAlert');
+
+  if (alertBox) {
+    alertBox.style.display = 'block';
+    alertBox.style.backgroundColor = '#eff6ff';
+    alertBox.style.color = '#1d4ed8';
+    alertBox.style.border = '1px solid #93c5fd';
+    alertBox.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; gap:10px;"><span class="loading-spinner"></span> Regenerating image for slide ${slideNumber}...</div>`;
+  }
+
+  try {
+    const res = await authFetch('/api/story/retry-image', {
+      method: 'POST',
+      body: JSON.stringify({ story_id: storyId, slide_number: slideNumber })
+    });
+    const data = await res.json();
+    if (res.ok && data.success && data.slide && data.slide.image_url) {
+      if (currentStoryData && currentStoryData.slides) {
+        const slideIdx = currentStoryData.slides.findIndex(s => s.slide_number === slideNumber);
+        if (slideIdx !== -1) {
+          currentStoryData.slides[slideIdx].image_url = data.slide.image_url;
+          currentStoryData.slides[slideIdx].image_status = 'ready';
+        }
+      }
+      if (alertBox) alertBox.style.display = 'none';
+      renderStoryCarousel();
+    } else {
+      throw new Error(data.message || 'Failed to retry image generation.');
+    }
+  } catch (err) {
+    if (alertBox) {
+      alertBox.style.display = 'block';
+      alertBox.style.backgroundColor = '#fef2f2';
+      alertBox.style.color = '#dc2626';
+      alertBox.style.border = '1px solid #fca5a5';
+      alertBox.innerHTML = `<i data-lucide="alert-triangle"></i> ${escapeHtml(err.message)}`;
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+  }
+}
+
+
 

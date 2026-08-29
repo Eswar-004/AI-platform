@@ -41,3 +41,11 @@ class Config:
     )
 
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "edumate-jwt-secret-key-2026-safe-key")
+
+    # Image Generation Service Configuration
+    IMAGE_PROVIDER = os.getenv("IMAGE_PROVIDER", "pollinations").lower()
+    IMAGE_API_KEY = os.getenv("IMAGE_API_KEY", "")
+    IMAGE_MODEL = os.getenv("IMAGE_MODEL", "flux")
+    IMAGE_WIDTH = int(os.getenv("IMAGE_WIDTH", 1024))
+    IMAGE_HEIGHT = int(os.getenv("IMAGE_HEIGHT", 576))
+

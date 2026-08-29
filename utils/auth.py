@@ -1,6 +1,6 @@
 from functools import wraps
 from flask import jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
 from models.users import User
 
 
@@ -32,11 +32,13 @@ def role_required(required_role):
 
 
 def get_current_user():
-    current_user_id = get_jwt_identity()
-    if not current_user_id:
-        return None
     try:
+        verify_jwt_in_request(optional=True)
+        current_user_id = get_jwt_identity()
+        if not current_user_id:
+            return None
         user_id = int(current_user_id)
         return User.query.get(user_id)
-    except (ValueError, TypeError):
+    except Exception:
         return None
+
