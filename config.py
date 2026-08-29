@@ -12,7 +12,7 @@ class Config:
     # MySQL Configuration
     MYSQL_HOST = "localhost"
     MYSQL_USER = "root"
-    MYSQL_PASSWORD = "2889"
+    MYSQL_PASSWORD = "2004"
     MYSQL_DATABASE = "edumate_db"
     MYSQL_PORT = 3306
 
@@ -32,7 +32,7 @@ class Config:
     )
     GROQ_MODEL = os.getenv(
         "GROQ_MODEL",
-        "openai/gpt-oss-20b"
+        "llama-3.3-70b-versatile"
     )
 
     PORT = int(os.getenv("PORT", 5000))
