@@ -11,6 +11,20 @@ let authToken = localStorage.getItem('access_token') || localStorage.getItem('au
 let currentUser = null;
 let isLoggingIn = false;
 
+// HTML Escaping Utility for XSS Prevention and safe rendering
+function escapeHtml(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 try {
   const savedUser = localStorage.getItem('currentUser');
   if (savedUser) currentUser = JSON.parse(savedUser);
@@ -1601,7 +1615,8 @@ function switchTeacherTab(tabName) {
     'add-students': 'Add New Student',
     'view-students': 'Registered Students & Progress',
     'assign-tasks': 'Assign Homework Task',
-    'review-work': 'Review Student Submissions'
+    'review-work': 'Review Student Submissions',
+    'ai-story': 'AI Story Creation'
   };
   const titleElem = document.getElementById('teacher-header-title');
   if (titleElem) titleElem.textContent = titleMap[tabName] || 'Teacher Dashboard';
@@ -1963,4 +1978,460 @@ async function handleTeacherReviewSubmission(subId) {
     alert("Error saving review: " + err.message);
   }
 }
+
+
+// ==========================================
+// AI STORY CREATION MODULE
+// ==========================================
+let currentStoryData = null;
+let currentSlideIndex = 0;
+
+async function handleGenerateStory(event) {
+  if (event) event.preventDefault();
+
+  const topicInput = document.getElementById('storyTopicInput');
+  const gradeSelect = document.getElementById('storyGradeSelect');
+  const slidesSelect = document.getElementById('storySlidesSelect');
+  const statusAlert = document.getElementById('storyStatusAlert');
+  const carouselContainer = document.getElementById('storyCarouselContainer');
+  const submitBtn = document.getElementById('generateStoryBtn');
+  const btnText = document.getElementById('generateStoryBtnText');
+
+  const topic = topicInput ? topicInput.value.trim() : '';
+  const grade = gradeSelect ? gradeSelect.value : '6th Standard';
+  const slide_count = slidesSelect ? parseInt(slidesSelect.value) : 5;
+
+  if (!topic) {
+    if (statusAlert) {
+      statusAlert.style.display = 'block';
+      statusAlert.style.backgroundColor = '#fef2f2';
+      statusAlert.style.color = '#dc2626';
+      statusAlert.style.border = '1px solid #fca5a5';
+      statusAlert.innerHTML = '<i data-lucide="alert-circle"></i> Please enter an educational topic (e.g. Evaporation).';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+    return;
+  }
+
+  // Set progressive loading state
+  if (submitBtn) submitBtn.disabled = true;
+  if (btnText) btnText.textContent = 'Generating Story with AI...';
+  if (statusAlert) {
+    statusAlert.style.display = 'block';
+    statusAlert.style.backgroundColor = '#eff6ff';
+    statusAlert.style.color = '#1d4ed8';
+    statusAlert.style.border = '1px solid #93c5fd';
+    statusAlert.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; gap:10px;"><span class="loading-spinner"></span> Step 1/2: Understanding topic & creating educational storyboard...</div>';
+  }
+  if (carouselContainer) carouselContainer.style.display = 'none';
+
+  const statusTimer = setTimeout(() => {
+    if (submitBtn && submitBtn.disabled && statusAlert) {
+      statusAlert.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; gap:10px;"><span class="loading-spinner"></span> Step 2/2: Generating AI educational illustrations in parallel...</div>';
+    }
+  }, 2200);
+
+  try {
+    const res = await authFetch('/api/story/generate', {
+      method: 'POST',
+      body: JSON.stringify({
+        topic: topic,
+        grade: grade,
+        slide_count: slide_count
+      })
+    });
+
+    clearTimeout(statusTimer);
+    const data = await res.json();
+
+    if (res.ok && data.success && data.story) {
+      currentStoryData = data.story;
+      currentSlideIndex = 0;
+
+      if (statusAlert) statusAlert.style.display = 'none';
+      renderStoryCarousel();
+      if (carouselContainer) carouselContainer.style.display = 'block';
+    } else {
+      throw new Error(data.message || 'Failed to generate story.');
+    }
+  } catch (err) {
+    clearTimeout(statusTimer);
+    if (statusAlert) {
+      statusAlert.style.display = 'block';
+      statusAlert.style.backgroundColor = '#fef2f2';
+      statusAlert.style.color = '#dc2626';
+      statusAlert.style.border = '1px solid #fca5a5';
+      statusAlert.innerHTML = `<i data-lucide="alert-triangle"></i> ${escapeHtml(err.message)}`;
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+    if (btnText) btnText.textContent = 'Generate Story';
+  }
+}
+
+let isNarratedVideoMode = false;
+let isNarrationPlaying = false;
+let currentNarrationUtterance = null;
+let isNarrationLoading = false;
+let narrationErrorText = '';
+
+function stopStoryNarration() {
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+  isNarrationPlaying = false;
+  isNarrationLoading = false;
+  currentNarrationUtterance = null;
+}
+
+function toggleNarratedVideoMode() {
+  if (isNarratedVideoMode) {
+    stopStoryNarration();
+    isNarratedVideoMode = false;
+    renderStoryCarousel();
+  } else {
+    isNarratedVideoMode = true;
+    isNarrationPlaying = true;
+    narrationErrorText = '';
+    currentSlideIndex = 0;
+    playSlideNarration(0);
+  }
+}
+
+function toggleNarrationPlayPause() {
+  if (!('speechSynthesis' in window)) return;
+
+  if (isNarrationPlaying) {
+    window.speechSynthesis.pause();
+    isNarrationPlaying = false;
+    renderStoryCarousel();
+  } else {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+      isNarrationPlaying = true;
+      renderStoryCarousel();
+    } else {
+      isNarrationPlaying = true;
+      playSlideNarration(currentSlideIndex);
+    }
+  }
+}
+
+function replayStoryNarration() {
+  stopStoryNarration();
+  isNarratedVideoMode = true;
+  isNarrationPlaying = true;
+  currentSlideIndex = 0;
+  playSlideNarration(0);
+}
+
+function playSlideNarration(slideIdx) {
+  if (!('speechSynthesis' in window)) {
+    narrationErrorText = "Text-to-Speech narration is not supported in your browser.";
+    isNarratedVideoMode = false;
+    isNarrationPlaying = false;
+    renderStoryCarousel();
+    return;
+  }
+
+  stopStoryNarration();
+
+  if (!currentStoryData || !currentStoryData.slides) return;
+  const slides = currentStoryData.slides;
+
+  if (slideIdx < 0 || slideIdx >= slides.length) {
+    isNarrationPlaying = false;
+    isNarratedVideoMode = false;
+    renderStoryCarousel();
+    return;
+  }
+
+  currentSlideIndex = slideIdx;
+  isNarratingMode = true;
+  isNarrationPlaying = true;
+  isNarrationLoading = true;
+  narrationErrorText = '';
+  renderStoryCarousel();
+
+  const currentSlide = slides[slideIdx];
+  const textToSpeak = currentSlide.subtitle || currentStoryData.topic || '';
+
+  currentNarrationUtterance = new SpeechSynthesisUtterance(textToSpeak);
+  currentNarrationUtterance.rate = 0.92;
+  currentNarrationUtterance.pitch = 1.05;
+
+  const availableVoices = window.speechSynthesis.getVoices();
+  const childFriendlyVoice = availableVoices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Zira') || v.name.includes('Jenny') || v.name.includes('Samantha'))) || availableVoices.find(v => v.lang.startsWith('en'));
+  if (childFriendlyVoice) {
+    currentNarrationUtterance.voice = childFriendlyVoice;
+  }
+
+  currentNarrationUtterance.onstart = () => {
+    isNarrationLoading = false;
+    isNarrationPlaying = true;
+    renderStoryCarousel();
+  };
+
+  currentNarrationUtterance.onend = () => {
+    isNarrationLoading = false;
+    if (isNarratedVideoMode && isNarrationPlaying) {
+      if (slideIdx + 1 < slides.length) {
+        setTimeout(() => {
+          if (isNarratedVideoMode && isNarrationPlaying) {
+            playSlideNarration(slideIdx + 1);
+          }
+        }, 700);
+      } else {
+        isNarrationPlaying = false;
+        renderStoryCarousel();
+      }
+    }
+  };
+
+  currentNarrationUtterance.onerror = (err) => {
+    console.error("Speech Synthesis Error for slide", slideIdx + 1, err);
+    isNarrationLoading = false;
+    narrationErrorText = `Narration encountered an error on Slide ${slideIdx + 1}. You can continue reading manually.`;
+    renderStoryCarousel();
+  };
+
+  window.speechSynthesis.speak(currentNarrationUtterance);
+}
+
+function renderStoryCarousel() {
+  const container = document.getElementById('storyCarouselContainer');
+  if (!container || !currentStoryData || !currentStoryData.slides || currentStoryData.slides.length === 0) return;
+
+  const slides = currentStoryData.slides;
+  const totalSlides = slides.length;
+  if (currentSlideIndex < 0) currentSlideIndex = 0;
+  if (currentSlideIndex >= totalSlides) currentSlideIndex = totalSlides - 1;
+
+  const slide = slides[currentSlideIndex];
+
+  let dotsHtml = '';
+  for (let i = 0; i < totalSlides; i++) {
+    const isActive = i === currentSlideIndex;
+    dotsHtml += `
+      <button onclick="goToStorySlide(${i})" 
+              title="Slide ${i + 1}"
+              style="width: ${isActive ? '28px' : '10px'}; height: 10px; border-radius: 6px; background: ${isActive ? '#8b5cf6' : '#cbd5e1'}; border: none; cursor: pointer; transition: all 0.3s ease;">
+      </button>
+    `;
+  }
+
+  const progressPercent = Math.round(((currentSlideIndex + 1) / totalSlides) * 100);
+
+  container.innerHTML = `
+    <div class="card-3d story-carousel-card" style="padding: 24px; border: 2px solid #e2e8f0; background: #ffffff; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);">
+      
+      <!-- Top Title & Badge Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">
+        <div>
+          <h3 style="margin: 0; font-size: 1.3rem; color: #1e293b;">${escapeHtml(currentStoryData.title || ('Story: ' + currentStoryData.topic))}</h3>
+          <span style="font-size: 0.85rem; color: #64748b;">Topic: <strong>${escapeHtml(currentStoryData.topic)}</strong></span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <span style="background: #f3e8ff; color: #7e22ce; font-weight: 700; font-size: 0.8rem; padding: 4px 10px; border-radius: 20px;">
+            <i data-lucide="graduation-cap" style="width: 14px; height: 14px; vertical-align: middle;"></i> ${escapeHtml(currentStoryData.grade)}
+          </span>
+          <span style="background: #e0f2fe; color: #0369a1; font-weight: 700; font-size: 0.8rem; padding: 4px 10px; border-radius: 20px;">
+            Slide ${slide.slide_number || (currentSlideIndex + 1)} of ${totalSlides}
+          </span>
+        </div>
+      </div>
+
+      <!-- Narrated Video Playback Control Panel (Shown when Narrated Video Mode is Active) -->
+      ${isNarratedVideoMode ? `
+        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); border-radius: 12px; padding: 14px 18px; margin-bottom: 18px; color: #ffffff; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);">
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <button onclick="toggleNarrationPlayPause()" class="btn-3d" style="background: #8b5cf6; border-color: #7c3aed; color: #ffffff; padding: 6px 16px; font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="${isNarrationPlaying ? 'pause' : 'play'}"></i> ${isNarrationPlaying ? 'Pause' : 'Play'}
+              </button>
+              <button onclick="replayStoryNarration()" class="btn-3d" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #ffffff; padding: 6px 14px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="rotate-ccw"></i> Replay
+              </button>
+            </div>
+
+            <div style="font-size: 0.85rem; font-weight: 700; color: #a7f3d0; display: flex; align-items: center; gap: 6px;">
+              ${isNarrationLoading ? `
+                <span class="loading-spinner" style="width: 14px; height: 14px;"></span> Preparing narration...
+              ` : (isNarrationPlaying ? `
+                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; animation: pulse 1.5s infinite;"></span> Auto-Playing Synced Narration
+              ` : `
+                <i data-lucide="pause-circle" style="width: 14px; height: 14px;"></i> Narration Paused
+              `)}
+            </div>
+          </div>
+
+          <!-- Video Progress Bar -->
+          <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.15); border-radius: 4px; overflow: hidden;">
+            <div style="width: ${progressPercent}%; height: 100%; background: linear-gradient(90deg, #8b5cf6, #ec4899); transition: width 0.4s ease; border-radius: 4px;"></div>
+          </div>
+
+        </div>
+      ` : ''}
+
+      <!-- Narration Error Banner -->
+      ${narrationErrorText ? `
+        <div style="background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; padding: 10px 14px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="alert-circle" style="width: 18px; height: 18px; flex-shrink: 0;"></i>
+          <span>${escapeHtml(narrationErrorText)}</span>
+        </div>
+      ` : ''}
+
+      <!-- Slide Main Canvas Card -->
+      <div class="carousel-slide-content" style="background: #f8fafc; border-radius: 14px; padding: 20px; border: 1.5px solid #e2e8f0; margin-bottom: 20px;">
+        
+        <!-- Actual AI Image Frame (16:9 Aspect Ratio) -->
+        <div class="illustration-frame" style="width: 100%; aspect-ratio: 16 / 9; max-height: 420px; border-radius: 12px; overflow: hidden; background: #0f172a; border: 1.5px solid #cbd5e1; margin-bottom: 18px; position: relative; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+          ${slide.image_url && slide.image_status !== 'failed' ? `
+            <img src="${escapeHtml(slide.image_url)}" 
+                 alt="Educational Illustration for ${escapeHtml(currentStoryData.topic)}" 
+                 style="width: 100%; height: 100%; object-fit: contain; display: block;" 
+                 onerror="handleSlideImageError(this, ${currentStoryData.id || 0}, ${slide.slide_number})" />
+          ` : `
+            <div style="padding: 30px; text-align: center; color: #94a3b8; width: 100%;">
+              <i data-lucide="image-off" style="width: 42px; height: 42px; margin-bottom: 8px; color: #ef4444;"></i>
+              <p style="font-weight: 700; color: #cbd5e1; margin: 0 0 10px 0;">Illustration unavailable</p>
+              <button onclick="retrySlideImage(${currentStoryData.id || 0}, ${slide.slide_number})" class="btn-3d btn-3d-purple" style="font-size: 0.85rem; padding: 6px 14px;">
+                <i data-lucide="refresh-cw"></i> Retry Image
+              </button>
+            </div>
+          `}
+        </div>
+
+        <!-- Subtitle Box (Placed strictly BELOW the image frame) -->
+        <div class="subtitle-box" style="background: #ffffff; padding: 18px 22px; border-radius: 10px; border-left: 4px solid #8b5cf6; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+          <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #8b5cf6; letter-spacing: 0.5px; margin-bottom: 6px;">
+            Slide ${slide.slide_number || (currentSlideIndex + 1)} Explanation
+          </div>
+          <p id="slideSubtitleText" style="font-size: 1.15rem; line-height: 1.55; color: #1e293b; margin: 0; font-weight: 600;">
+            ${escapeHtml(slide.subtitle)}
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Carousel Navigation Controls -->
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
+        <button onclick="prevStorySlide()" class="btn-3d" ${currentSlideIndex === 0 ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''} style="padding: 10px 20px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+          <i data-lucide="chevron-left"></i> Previous
+        </button>
+
+        <!-- New Narrated Video / Audio Mode Toggle Button -->
+        <button onclick="toggleNarratedVideoMode()" class="btn-3d" style="padding: 10px 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; background: ${isNarratedVideoMode ? '#db2777' : '#059669'}; border-color: ${isNarratedVideoMode ? '#be185d' : '#047857'}; color: #ffffff;">
+          <i data-lucide="${isNarratedVideoMode ? 'book-open' : 'video'}"></i> ${isNarratedVideoMode ? 'Read Manually' : 'Play Narrated Video'}
+        </button>
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+          ${dotsHtml}
+        </div>
+
+        <button onclick="nextStorySlide()" class="btn-3d btn-3d-purple" ${currentSlideIndex === totalSlides - 1 ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''} style="padding: 10px 20px; font-weight: 700; display: flex; align-items: center; gap: 6px; background-color: #8b5cf6; border-color: #7c3aed; color: #fff;">
+          Next <i data-lucide="chevron-right"></i>
+        </button>
+      </div>
+
+    </div>
+  `;
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function prevStorySlide() {
+  if (isNarratedVideoMode) {
+    stopStoryNarration();
+    isNarratedVideoMode = false;
+  }
+  if (currentStoryData && currentSlideIndex > 0) {
+    currentSlideIndex--;
+    renderStoryCarousel();
+  }
+}
+
+function nextStorySlide() {
+  if (isNarratedVideoMode) {
+    stopStoryNarration();
+    isNarratedVideoMode = false;
+  }
+  if (currentStoryData && currentStoryData.slides && currentSlideIndex < currentStoryData.slides.length - 1) {
+    currentSlideIndex++;
+    renderStoryCarousel();
+  }
+}
+
+function goToStorySlide(idx) {
+  if (isNarratedVideoMode) {
+    stopStoryNarration();
+    isNarratedVideoMode = false;
+  }
+  if (currentStoryData && currentStoryData.slides && idx >= 0 && idx < currentStoryData.slides.length) {
+    currentSlideIndex = idx;
+    renderStoryCarousel();
+  }
+}
+
+function handleSlideImageError(imgElem, storyId, slideNumber) {
+  if (!imgElem || !imgElem.parentNode) return;
+  const frame = imgElem.parentNode;
+  frame.innerHTML = `
+    <div style="padding: 30px; text-align: center; color: #94a3b8; width: 100%;">
+      <i data-lucide="image-off" style="width: 42px; height: 42px; margin-bottom: 8px; color: #ef4444;"></i>
+      <p style="font-weight: 700; color: #cbd5e1; margin: 0 0 10px 0;">Illustration unavailable</p>
+      <button onclick="retrySlideImage(${storyId}, ${slideNumber})" class="btn-3d btn-3d-purple" style="font-size: 0.85rem; padding: 6px 14px;">
+        <i data-lucide="refresh-cw"></i> Retry Image
+      </button>
+    </div>
+  `;
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function retrySlideImage(storyId, slideNumber) {
+  if (!storyId) return;
+  const alertBox = document.getElementById('storyStatusAlert');
+
+  if (alertBox) {
+    alertBox.style.display = 'block';
+    alertBox.style.backgroundColor = '#eff6ff';
+    alertBox.style.color = '#1d4ed8';
+    alertBox.style.border = '1px solid #93c5fd';
+    alertBox.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; gap:10px;"><span class="loading-spinner"></span> Regenerating image for slide ${slideNumber}...</div>`;
+  }
+
+  try {
+    const res = await authFetch('/api/story/retry-image', {
+      method: 'POST',
+      body: JSON.stringify({ story_id: storyId, slide_number: slideNumber })
+    });
+    const data = await res.json();
+    if (res.ok && data.success && data.slide && data.slide.image_url) {
+      if (currentStoryData && currentStoryData.slides) {
+        const slideIdx = currentStoryData.slides.findIndex(s => s.slide_number === slideNumber);
+        if (slideIdx !== -1) {
+          currentStoryData.slides[slideIdx].image_url = data.slide.image_url;
+          currentStoryData.slides[slideIdx].image_status = 'ready';
+        }
+      }
+      if (alertBox) alertBox.style.display = 'none';
+      renderStoryCarousel();
+    } else {
+      throw new Error(data.message || 'Failed to retry image generation.');
+    }
+  } catch (err) {
+    if (alertBox) {
+      alertBox.style.display = 'block';
+      alertBox.style.backgroundColor = '#fef2f2';
+      alertBox.style.color = '#dc2626';
+      alertBox.style.border = '1px solid #fca5a5';
+      alertBox.innerHTML = `<i data-lucide="alert-triangle"></i> ${escapeHtml(err.message)}`;
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+  }
+}
+
+
 

@@ -222,4 +222,185 @@ Ensure there are exactly {num_questions} questions. Keep explanations under 15 w
             "warning": f"Generated using fallback due to AI model format issue: {str(e)}"
         }
 
+
+def generate_storyboard(topic: str, grade: str = "6th Standard", slide_count: int = 5) -> dict:
+    """
+    Generate an educational storyboard in a SINGLE Groq LLM API request.
+    Identifies learning objectives, step-by-step concepts, subtitles, and image prompts.
+    Returns: { "success": bool, "storyboard": { "title": ..., "topic": ..., "grade": ..., "shared_style_context": ..., "slides": [...] } }
+    """
+    import json
+    import re
+
+    if not topic or not topic.strip():
+        return {
+            "success": False,
+            "message": "Topic is required to generate a storyboard."
+        }
+
+    try:
+        count = int(slide_count)
+        if count not in (4, 5):
+            count = 5
+    except (ValueError, TypeError):
+        count = 5
+
+    grade_str = str(grade).strip()
+    if not grade_str.lower().endswith("standard") and not grade_str.lower().endswith("grade"):
+        grade_str = f"{grade_str} Standard"
+
+    grade_num = 6
+    numbers = re.findall(r'\d+', grade_str)
+    if numbers:
+        try:
+            grade_num = int(numbers[0])
+        except ValueError:
+            pass
+
+    if grade_num <= 3:
+        grade_guideline = "Use very simple vocabulary, short sentences, playful analogies, and concrete everyday examples suitable for primary students."
+    elif grade_num <= 8:
+        grade_guideline = "Use engaging descriptive language, clear cause-and-effect relationships, and basic scientific/academic terminology suited for middle school students."
+    else:
+        grade_guideline = "Use precise scientific/academic terminology, deeper conceptual mechanisms, accurate cause-and-effect analysis, and real-world applications suited for high school students."
+
+    prompt = f"""You are an expert school science teacher and educational storyboard designer.
+Create a complete educational storyboard explaining "{topic}" for a student in "{grade_str}".
+
+The story MUST contain EXACTLY {count} sequential slides progressing logically:
+Slide 1: Beginning / Real-world context
+Slide 2..{count-1}: Step-by-step conceptual development & cause-and-effect relationships
+Slide {count}: Conclusion / Conceptual summary & real-world connection
+
+Grade Level Adaptation ({grade_str}):
+{grade_guideline}
+
+STRICT REQUIREMENTS FOR IMAGE PROMPTS ("image_prompt"):
+1. DO NOT include subtitles, paragraphs, titles, words, letters, labels, or UI text inside "image_prompt".
+2. "image_prompt" MUST describe purely visual, physical elements suitable for an text-to-image AI model (e.g. "Sun shining on a quiet blue lake, water surface showing mist rising").
+3. Provide a unified "shared_style_context" string that establishes a visually consistent textbook illustration style across all slides (e.g. "Clean modern educational textbook illustration, scientifically accurate, clear composition, soft natural lighting").
+
+Return strictly a JSON object matching this schema:
+{{
+  "title": "Understanding {topic}",
+  "topic": "{topic}",
+  "grade": "{grade_str}",
+  "learning_objective": "1-sentence core learning objective",
+  "shared_style_context": "Clean modern educational textbook illustration, scientifically accurate, suitable for {grade_str} students, consistent style",
+  "slides": [
+    {{
+      "slide_number": 1,
+      "concept": "Core concept of step 1",
+      "subtitle": "Clear 1-2 sentence educational subtitle for step 1",
+      "image_prompt": "Purely visual description of scene 1 without any text or labels"
+    }}
+  ]
+}}
+Ensure there are EXACTLY {count} slides in the "slides" array with sequential slide_number (1 to {count})."""
+
+    def call_groq_llm(user_prompt: str) -> str:
+        client = Groq(api_key=Config.GROQ_API_KEY)
+        completion = client.chat.completions.create(
+            model=Config.GROQ_MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an AI educational content developer and storyboard designer. Output ONLY a raw, complete JSON object matching the requested schema without any markdown code fences or conversational text."
+                },
+                {
+                    "role": "user",
+                    "content": user_prompt
+                }
+            ],
+            temperature=0.2,
+            max_completion_tokens=2000
+        )
+        return completion.choices[0].message.content.strip()
+
+    def parse_storyboard_json(raw_text: str) -> dict:
+        parsed = None
+        first_brace = raw_text.find('{')
+        last_brace = raw_text.rfind('}')
+        if first_brace != -1 and last_brace > first_brace:
+            json_candidate = raw_text[first_brace:last_brace + 1]
+            try:
+                parsed = json.loads(json_candidate)
+            except Exception as e:
+                print(f"JSON candidate parse error: {e}", file=sys.stderr)
+
+        if not parsed:
+            try:
+                parsed = json.loads(raw_text)
+            except Exception:
+                pass
+        return parsed
+
+    try:
+        raw_text = call_groq_llm(prompt)
+        parsed = parse_storyboard_json(raw_text)
+
+        # Validate parsed storyboard schema
+        if not (isinstance(parsed, dict) and "slides" in parsed and isinstance(parsed["slides"], list) and len(parsed["slides"]) == count):
+            print("Initial storyboard validation failed. Performing 1 strict retry...", file=sys.stderr)
+            retry_prompt = prompt + "\n\nCRITICAL: Your previous response failed schema validation. Return strictly JSON with exactly " + str(count) + " items in 'slides'."
+            raw_text = call_groq_llm(retry_prompt)
+            parsed = parse_storyboard_json(raw_text)
+
+        if isinstance(parsed, dict) and "slides" in parsed and isinstance(parsed["slides"], list) and len(parsed["slides"]) > 0:
+            # Ensure sequential slide numbering and mandatory fields
+            validated_slides = []
+            for idx, slide in enumerate(parsed["slides"], 1):
+                validated_slides.append({
+                    "slide_number": idx,
+                    "concept": slide.get("concept", f"Step {idx} of {topic}"),
+                    "subtitle": slide.get("subtitle", f"Step {idx}: Learning about {topic}.").strip(),
+                    "image_prompt": slide.get("image_prompt") or slide.get("visual_prompt") or f"Educational scene illustrating {topic} step {idx}"
+                })
+
+            storyboard = {
+                "title": parsed.get("title", f"Understanding {topic}"),
+                "topic": topic,
+                "grade": grade_str,
+                "learning_objective": parsed.get("learning_objective", f"Understand the core concepts of {topic}"),
+                "shared_style_context": parsed.get("shared_style_context", f"Clean modern educational textbook illustration for {grade_str} students"),
+                "slides": validated_slides
+            }
+            return {
+                "success": True,
+                "storyboard": storyboard
+            }
+        else:
+            raise ValueError("LLM response did not contain a valid 'slides' array matching required count.")
+
+    except Exception as e:
+        print(f"Error generating storyboard AI: {e}", file=sys.stderr)
+        # Fallback storyboard
+        fallback_slides = []
+        for i in range(1, count + 1):
+            fallback_slides.append({
+                "slide_number": i,
+                "concept": f"Fundamental aspect {i} of {topic}",
+                "subtitle": f"Step {i}: Learning about {topic} for {grade_str}.",
+                "image_prompt": f"Clear educational scene showing {topic} at step {i}."
+            })
+
+        return {
+            "success": True,
+            "storyboard": {
+                "title": f"Understanding {topic}",
+                "topic": topic,
+                "grade": grade_str,
+                "learning_objective": f"Learn key steps of {topic}",
+                "shared_style_context": f"Clean educational textbook illustration for {grade_str}",
+                "slides": fallback_slides
+            },
+            "warning": f"Generated using fallback structure due to AI format issue: {str(e)}"
+        }
+
+
+# Alias for backward compatibility
+generate_image_story_ai = generate_storyboard
+
+
+
 
