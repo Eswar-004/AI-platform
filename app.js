@@ -2466,6 +2466,135 @@ async function handleGenerateStory(event) {
   }
 }
 
+let isNarratedVideoMode = false;
+let isNarrationPlaying = false;
+let currentNarrationUtterance = null;
+let isNarrationLoading = false;
+let narrationErrorText = '';
+
+function stopStoryNarration() {
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+  isNarrationPlaying = false;
+  isNarrationLoading = false;
+  currentNarrationUtterance = null;
+}
+
+function toggleNarratedVideoMode() {
+  if (isNarratedVideoMode) {
+    stopStoryNarration();
+    isNarratedVideoMode = false;
+    renderStoryCarousel();
+  } else {
+    isNarratedVideoMode = true;
+    isNarrationPlaying = true;
+    narrationErrorText = '';
+    currentSlideIndex = 0;
+    playSlideNarration(0);
+  }
+}
+
+function toggleNarrationPlayPause() {
+  if (!('speechSynthesis' in window)) return;
+
+  if (isNarrationPlaying) {
+    window.speechSynthesis.pause();
+    isNarrationPlaying = false;
+    renderStoryCarousel();
+  } else {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+      isNarrationPlaying = true;
+      renderStoryCarousel();
+    } else {
+      isNarrationPlaying = true;
+      playSlideNarration(currentSlideIndex);
+    }
+  }
+}
+
+function replayStoryNarration() {
+  stopStoryNarration();
+  isNarratedVideoMode = true;
+  isNarrationPlaying = true;
+  currentSlideIndex = 0;
+  playSlideNarration(0);
+}
+
+function playSlideNarration(slideIdx) {
+  if (!('speechSynthesis' in window)) {
+    narrationErrorText = "Text-to-Speech narration is not supported in your browser.";
+    isNarratedVideoMode = false;
+    isNarrationPlaying = false;
+    renderStoryCarousel();
+    return;
+  }
+
+  stopStoryNarration();
+
+  if (!currentStoryData || !currentStoryData.slides) return;
+  const slides = currentStoryData.slides;
+
+  if (slideIdx < 0 || slideIdx >= slides.length) {
+    isNarrationPlaying = false;
+    isNarratedVideoMode = false;
+    renderStoryCarousel();
+    return;
+  }
+
+  currentSlideIndex = slideIdx;
+  isNarratingMode = true;
+  isNarrationPlaying = true;
+  isNarrationLoading = true;
+  narrationErrorText = '';
+  renderStoryCarousel();
+
+  const currentSlide = slides[slideIdx];
+  const textToSpeak = currentSlide.subtitle || currentStoryData.topic || '';
+
+  currentNarrationUtterance = new SpeechSynthesisUtterance(textToSpeak);
+  currentNarrationUtterance.rate = 0.92;
+  currentNarrationUtterance.pitch = 1.05;
+
+  const availableVoices = window.speechSynthesis.getVoices();
+  const childFriendlyVoice = availableVoices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Zira') || v.name.includes('Jenny') || v.name.includes('Samantha'))) || availableVoices.find(v => v.lang.startsWith('en'));
+  if (childFriendlyVoice) {
+    currentNarrationUtterance.voice = childFriendlyVoice;
+  }
+
+  currentNarrationUtterance.onstart = () => {
+    isNarrationLoading = false;
+    isNarrationPlaying = true;
+    renderStoryCarousel();
+  };
+
+  currentNarrationUtterance.onend = () => {
+    isNarrationLoading = false;
+    if (isNarratedVideoMode && isNarrationPlaying) {
+      if (slideIdx + 1 < slides.length) {
+        setTimeout(() => {
+          if (isNarratedVideoMode && isNarrationPlaying) {
+            playSlideNarration(slideIdx + 1);
+          }
+        }, 700);
+      } else {
+        isNarrationPlaying = false;
+        renderStoryCarousel();
+      }
+    }
+  };
+
+  currentNarrationUtterance.onerror = (err) => {
+    console.error("Speech Synthesis Error for slide", slideIdx + 1, err);
+    isNarrationLoading = false;
+    narrationErrorText = `Narration encountered an error on Slide ${slideIdx + 1}. You can continue reading manually.`;
+    renderStoryCarousel();
+  };
+
+  window.speechSynthesis.speak(currentNarrationUtterance);
+}
+
 function renderStoryCarousel() {
   const container = document.getElementById('storyCarouselContainer');
   if (!container || !currentStoryData || !currentStoryData.slides || currentStoryData.slides.length === 0) return;
@@ -2488,6 +2617,8 @@ function renderStoryCarousel() {
     `;
   }
 
+  const progressPercent = Math.round(((currentSlideIndex + 1) / totalSlides) * 100);
+
   container.innerHTML = `
     <div class="card-3d story-carousel-card" style="padding: 24px; border: 2px solid #e2e8f0; background: #ffffff; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);">
       
@@ -2506,6 +2637,47 @@ function renderStoryCarousel() {
           </span>
         </div>
       </div>
+
+      <!-- Narrated Video Playback Control Panel (Shown when Narrated Video Mode is Active) -->
+      ${isNarratedVideoMode ? `
+        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); border-radius: 12px; padding: 14px 18px; margin-bottom: 18px; color: #ffffff; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);">
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <button onclick="toggleNarrationPlayPause()" class="btn-3d" style="background: #8b5cf6; border-color: #7c3aed; color: #ffffff; padding: 6px 16px; font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="${isNarrationPlaying ? 'pause' : 'play'}"></i> ${isNarrationPlaying ? 'Pause' : 'Play'}
+              </button>
+              <button onclick="replayStoryNarration()" class="btn-3d" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #ffffff; padding: 6px 14px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="rotate-ccw"></i> Replay
+              </button>
+            </div>
+
+            <div style="font-size: 0.85rem; font-weight: 700; color: #a7f3d0; display: flex; align-items: center; gap: 6px;">
+              ${isNarrationLoading ? `
+                <span class="loading-spinner" style="width: 14px; height: 14px;"></span> Preparing narration...
+              ` : (isNarrationPlaying ? `
+                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; animation: pulse 1.5s infinite;"></span> Auto-Playing Synced Narration
+              ` : `
+                <i data-lucide="pause-circle" style="width: 14px; height: 14px;"></i> Narration Paused
+              `)}
+            </div>
+          </div>
+
+          <!-- Video Progress Bar -->
+          <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.15); border-radius: 4px; overflow: hidden;">
+            <div style="width: ${progressPercent}%; height: 100%; background: linear-gradient(90deg, #8b5cf6, #ec4899); transition: width 0.4s ease; border-radius: 4px;"></div>
+          </div>
+
+        </div>
+      ` : ''}
+
+      <!-- Narration Error Banner -->
+      ${narrationErrorText ? `
+        <div style="background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; padding: 10px 14px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="alert-circle" style="width: 18px; height: 18px; flex-shrink: 0;"></i>
+          <span>${escapeHtml(narrationErrorText)}</span>
+        </div>
+      ` : ''}
 
       <!-- Slide Main Canvas Card -->
       <div class="carousel-slide-content" style="background: #f8fafc; border-radius: 14px; padding: 20px; border: 1.5px solid #e2e8f0; margin-bottom: 20px;">
@@ -2546,6 +2718,11 @@ function renderStoryCarousel() {
           <i data-lucide="chevron-left"></i> Previous
         </button>
 
+        <!-- New Narrated Video / Audio Mode Toggle Button -->
+        <button onclick="toggleNarratedVideoMode()" class="btn-3d" style="padding: 10px 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; background: ${isNarratedVideoMode ? '#db2777' : '#059669'}; border-color: ${isNarratedVideoMode ? '#be185d' : '#047857'}; color: #ffffff;">
+          <i data-lucide="${isNarratedVideoMode ? 'book-open' : 'video'}"></i> ${isNarratedVideoMode ? 'Read Manually' : 'Play Narrated Video'}
+        </button>
+
         <div style="display: flex; align-items: center; gap: 8px;">
           ${dotsHtml}
         </div>
@@ -2562,6 +2739,10 @@ function renderStoryCarousel() {
 }
 
 function prevStorySlide() {
+  if (isNarratedVideoMode) {
+    stopStoryNarration();
+    isNarratedVideoMode = false;
+  }
   if (currentStoryData && currentSlideIndex > 0) {
     currentSlideIndex--;
     renderStoryCarousel();
@@ -2569,6 +2750,10 @@ function prevStorySlide() {
 }
 
 function nextStorySlide() {
+  if (isNarratedVideoMode) {
+    stopStoryNarration();
+    isNarratedVideoMode = false;
+  }
   if (currentStoryData && currentStoryData.slides && currentSlideIndex < currentStoryData.slides.length - 1) {
     currentSlideIndex++;
     renderStoryCarousel();
@@ -2576,6 +2761,10 @@ function nextStorySlide() {
 }
 
 function goToStorySlide(idx) {
+  if (isNarratedVideoMode) {
+    stopStoryNarration();
+    isNarratedVideoMode = false;
+  }
   if (currentStoryData && currentStoryData.slides && idx >= 0 && idx < currentStoryData.slides.length) {
     currentSlideIndex = idx;
     renderStoryCarousel();

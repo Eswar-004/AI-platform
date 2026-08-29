@@ -29,6 +29,8 @@ class Story(db.Model):
         }
 
 
+from sqlalchemy.dialects.mysql import LONGTEXT
+
 class StorySlide(db.Model):
     __tablename__ = "story_slide"
 
@@ -37,7 +39,7 @@ class StorySlide(db.Model):
     slide_number = db.Column(db.Integer, nullable=False)
     subtitle = db.Column(db.Text, nullable=False)
     image_prompt = db.Column(db.Text, nullable=True)
-    image_url = db.Column(db.Text, nullable=True)
+    image_url = db.Column(LONGTEXT, nullable=True)
     image_status = db.Column(db.String(50), default="ready")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
