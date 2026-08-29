@@ -88,10 +88,22 @@ def generate_story_endpoint():
 
         db.session.commit()
 
-        # Step 4: Construct clean JSON response (excluding raw image_prompt)
+        # Step 4: Construct clean JSON response
+        story_dict = new_story.to_dict()
+        for idx, slide_item in enumerate(story_dict.get("slides", [])):
+            s_num = slide_item.get("slide_number", idx + 1)
+            img_res = img_results.get(s_num, {})
+            slide_item["fallback_url"] = img_res.get("fallback_url") or f"https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=900&auto=format&fit=crop&q=80"
+        story_dict["characters"] = storyboard.get("characters", [])
+        story_dict["learning_objective"] = storyboard.get("learning_objective", "")
+        story_dict["key_takeaway"] = storyboard.get("key_takeaway", "")
+        story_dict["full_story"] = storyboard.get("full_story", "\n\n---\n\n".join([s.get("subtitle", "") for s in slides_data]))
+
         return jsonify({
             "success": True,
-            "story": new_story.to_dict()
+            "story": story_dict,
+            "title": story_dict.get("title", f"The Story of {topic}"),
+            "response": story_dict["full_story"]
         }), 200
 
     except Exception as e:

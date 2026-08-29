@@ -446,102 +446,498 @@ function toggleChatMic() {
 
 
 // ==========================================
-// 4. STORY MODE INTERACTIVE GENERATOR
+// 4. STORY MODE INTERACTIVE GENERATOR & READER
 // ==========================================
+
+let currentStudentStory = null;
+let studentSlideIndex = 0;
+let isStorySpeaking = false;
+let isStudentFullStoryMode = false;
+
+function applyStoryPreset(topicName) {
+  const inputEl = document.getElementById('storyInput');
+  if (inputEl) {
+    inputEl.value = topicName;
+    generateStoryFromInput();
+  }
+}
 
 async function generateStoryFromInput() {
   const inputEl = document.getElementById('storyInput');
   const gradeSelect = document.getElementById('gradeSelect');
   const selectedGrade = gradeSelect ? parseInt(gradeSelect.value) : 6;
-  const inputVal = inputEl.value.trim();
+  const inputVal = inputEl ? inputEl.value.trim() : '';
   if (!inputVal) return;
 
   const generateBtn = document.getElementById('storyGenerateBtn');
+  const btnText = document.getElementById('storyGenerateBtnText');
   const placeholder = document.getElementById('storyPlaceholder');
+  const loadingState = document.getElementById('storyLoadingState');
+  const loadingTitle = document.getElementById('storyLoadingTitle');
+  const loadingSubtext = document.getElementById('storyLoadingSubtext');
   const contentBox = document.getElementById('storyContentBox');
-  const activeTitle = document.getElementById('activeStoryTitle');
-  const textContainer = document.getElementById('storyTextContainer');
-  const illustration = document.getElementById('storyIllustration');
 
-  // Disable button and input
+  // Stop any active narration
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  isStorySpeaking = false;
+  updateStoryAudioButtonState();
+
+  // Show loading state
   if (generateBtn) generateBtn.disabled = true;
-  inputEl.disabled = true;
+  if (btnText) btnText.textContent = 'Generating Story with AI...';
+  if (inputEl) inputEl.disabled = true;
 
-  placeholder.style.display = 'none';
-  contentBox.classList.add('active');
-  activeTitle.textContent = `The Story of ${inputVal}`;
-  textContainer.innerHTML = 'Writing characters and preparing pages... 📚';
-  
-  // Set custom illustration depending on keyword
-  let iconName = 'book-open';
-  if (inputVal.toLowerCase().includes('water') || inputVal.toLowerCase().includes('evap')) iconName = 'droplet';
-  else if (inputVal.toLowerCase().includes('plant') || inputVal.toLowerCase().includes('breath')) iconName = 'leaf';
-  else if (inputVal.toLowerCase().includes('sun') || inputVal.toLowerCase().includes('solar')) iconName = 'sun';
-  else if (inputVal.toLowerCase().includes('gravity')) iconName = 'arrow-down';
-  illustration.innerHTML = `<i data-lucide="${iconName}"></i>`;
-  if (typeof lucide !== 'undefined') lucide.createIcons();
+  if (placeholder) placeholder.style.display = 'none';
+  if (contentBox) contentBox.classList.remove('active');
+  if (loadingState) loadingState.style.display = 'block';
+  if (loadingTitle) loadingTitle.textContent = `Weaving the story of "${inputVal}"...`;
+  if (loadingSubtext) loadingSubtext.textContent = 'Step 1/2: Crafting character dialogues & step-by-step storyline...';
 
-  // Determine instruction based on selected grade
-  let gradeInstruction = '';
-  if (selectedGrade <= 3) {
-    gradeInstruction = 'Use very simple vocabulary, short sentences, playful tone, and relatable everyday characters (animals, toys, family). Keep technical terms minimal and use lots of repetition and simple analogies.';
-  } else if (selectedGrade <= 6) {
-    gradeInstruction = 'Use slightly more descriptive language, introduce basic subject-specific vocabulary with simple definitions, moderate sentence length, and an adventure/curiosity-driven narrative style.';
-  } else if (selectedGrade <= 8) {
-    gradeInstruction = 'Provide more detailed explanations, include proper scientific or subject terminology with context, longer narrative arcs, and simple cause/effect relationships.';
-  } else {
-    gradeInstruction = 'Use accurate subject terminology, complex sentence structures, and incorporate real-world applications or deeper insights suitable for higher grades.';
-  }
-  const promptText = `Write an engaging, illustrated-style short story explaining "${inputVal}" for a Grade ${selectedGrade} student.
-${gradeInstruction}
-Break the story into exactly 4 short paragraphs. Use characters, adventure, or analogy to explain the concept.
-Separate each paragraph with a line containing only "---".
-Do not output any introductory or summary text, just the 4 paragraphs separated by "---".`;
+  const loadingTimer = setTimeout(() => {
+    if (loadingSubtext && loadingState.style.display !== 'none') {
+      loadingSubtext.textContent = 'Step 2/2: Generating vibrant AI illustrations for every chapter...';
+    }
+  }, 2500);
 
-  let aiStory = "";
+  let storyPayload = null;
+
   try {
+    // 1. Call primary storyboard endpoint
     const response = await fetch(`${BACKEND_BASE_URL}/api/story/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ topic: inputVal, gradeLevel: selectedGrade })
+      body: JSON.stringify({ 
+        topic: inputVal, 
+        grade: `${selectedGrade}th Standard`,
+        slide_count: 5 
+      })
     });
+
+    clearTimeout(loadingTimer);
     const data = await response.json();
-    if (!response.ok || data.success === false) {
-      throw new Error(data.message || data.response || "Failed to generate story");
+
+    if (response.ok && data.success && data.story && Array.isArray(data.story.slides) && data.story.slides.length > 0) {
+      storyPayload = data.story;
+    } else {
+      throw new Error(data.message || "Failed to generate storyboard structure");
     }
-    aiStory = data.story || data.response || "";
   } catch (err) {
-    console.warn("Falling back to chat API for story:", err);
-    aiStory = await callAiApi(promptText);
+    clearTimeout(loadingTimer);
+    console.warn("Primary story generation failed, falling back to /api/ai/story:", err);
+    
+    // Fallback: Call /api/ai/story
+    try {
+      const fbResponse = await fetch(`${BACKEND_BASE_URL}/api/ai/story`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic: inputVal, gradeLevel: String(selectedGrade) })
+      });
+      const fbData = await fbResponse.json();
+      
+      let rawStory = (fbData && (fbData.story || fbData.response)) ? (fbData.story || fbData.response) : "";
+      if (!rawStory) {
+        rawStory = await callAiApi(`Write an engaging story explaining "${inputVal}" for a Grade ${selectedGrade} student. Separate 4 paragraphs with "---".`);
+      }
+
+      // Convert text paragraphs into slides structure
+      let paras = typeof rawStory === 'string' ? rawStory.split('---').map(p => p.trim()).filter(p => p.length > 0) : [];
+      if (paras.length < 2 && typeof rawStory === 'string') {
+        paras = rawStory.split('\n\n').map(p => p.trim()).filter(p => p.length > 0);
+      }
+      if (paras.length === 0) {
+        paras = [`Welcome to the amazing world of ${inputVal}! Characters explore how it works step-by-step.`];
+      }
+
+      const generatedSlides = paras.map((pText, idx) => {
+        const encodedPrompt = encodeURIComponent(`Charming children's book illustration for ${inputVal} step ${idx + 1}, cute friendly characters, colorful digital art`);
+        const seed = Math.floor(Math.random() * 900000) + 100000;
+        return {
+          slide_number: idx + 1,
+          concept: `Chapter ${idx + 1}: Exploring ${inputVal}`,
+          subtitle: pText,
+          image_url: `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=576&seed=${seed}&nologo=true`,
+          image_status: 'ready'
+        };
+      });
+
+      storyPayload = {
+        title: (fbData && fbData.title) ? fbData.title : `The Adventure of ${inputVal}`,
+        topic: inputVal,
+        grade: `Grade ${selectedGrade}`,
+        characters: ["Nature Friends", "Story Characters"],
+        learning_objective: `Understand the concepts of ${inputVal} through a friendly story`,
+        key_takeaway: `Key takeaways and core principles of ${inputVal}.`,
+        slides: generatedSlides,
+        full_story: paras.join("\n\n---\n\n")
+      };
+    } catch (fallbackErr) {
+      console.error("All story generation attempts failed:", fallbackErr);
+      if (loadingState) loadingState.style.display = 'none';
+      if (placeholder) {
+        placeholder.style.display = 'flex';
+        placeholder.innerHTML = `
+          <div style="background: #fef2f2; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
+            <i data-lucide="alert-circle" style="font-size: 2rem; color: #ef4444;"></i>
+          </div>
+          <h4 style="color: #dc2626; margin: 0;">Could not generate story</h4>
+          <p style="color: #64748b; font-size: 0.88rem;">${escapeHtml(fallbackErr.message || 'Please check your connection and try again.')}</p>
+          <button class="btn-3d btn-3d-purple" onclick="generateStoryFromInput()" style="margin-top: 10px; padding: 6px 16px; font-size: 0.85rem;">Try Again</button>
+        `;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      }
+      if (generateBtn) generateBtn.disabled = false;
+      if (btnText) btnText.textContent = 'Generate Illustrated Story';
+      if (inputEl) inputEl.disabled = false;
+      return;
+    }
   }
 
-  // Split story into paragraphs
-  let paragraphs = aiStory.split('---').map(p => p.trim()).filter(p => p.length > 0);
-  if (paragraphs.length < 2) {
-    paragraphs = aiStory.split('\n\n').map(p => p.trim()).filter(p => p.length > 0);
-  }
-  
-  // Limit to at most 4 paragraphs to keep layout clean
-  if (paragraphs.length > 4) {
-    paragraphs = paragraphs.slice(0, 4);
-  }
-
-  // Re-enable button and input
+  // Restore button state
   if (generateBtn) generateBtn.disabled = false;
-  inputEl.disabled = false;
+  if (btnText) btnText.textContent = 'Generate Illustrated Story';
+  if (inputEl) inputEl.disabled = false;
 
-  textContainer.innerHTML = '';
-  
-  // Write paragraphs sequentially to make it feel "streamed"
-  paragraphs.forEach((pText, index) => {
-    setTimeout(() => {
-      const p = document.createElement('p');
-      p.className = 'story-paragraph';
-      p.innerHTML = pText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      textContainer.appendChild(p);
-      textContainer.scrollTop = textContainer.scrollHeight;
-    }, index * 1500);
+  // Render Story
+  currentStudentStory = storyPayload;
+  studentSlideIndex = 0;
+  isStudentFullStoryMode = false;
+
+  if (loadingState) loadingState.style.display = 'none';
+  if (contentBox) contentBox.classList.add('active');
+
+  renderStudentStorySlide(0);
+  preloadStudentStoryImages(currentStudentStory.slides);
+}
+
+function preloadStudentStoryImages(slides) {
+  if (!Array.isArray(slides)) return;
+  slides.forEach((s, idx) => {
+    if (s.image_url) {
+      setTimeout(() => {
+        const preloader = new Image();
+        preloader.src = s.image_url;
+      }, idx * 500);
+    }
   });
+}
+
+function formatStoryText(rawText) {
+  if (!rawText) return '';
+  let escaped = escapeHtml(rawText);
+  // Highlight dialogue quotes cleanly in bold purple without corrupting attributes
+  escaped = escaped.replace(/&quot;([^&]*?)&quot;/g, '<strong style="color: #6d28d9; font-weight: 700;">&ldquo;$1&rdquo;</strong>');
+  // Highlight markdown bold **...**
+  escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  return escaped;
+}
+
+function renderStudentStorySlide(index) {
+  if (!currentStudentStory || !currentStudentStory.slides || currentStudentStory.slides.length === 0) return;
+
+  const slides = currentStudentStory.slides;
+  const totalSlides = slides.length;
+  if (index < 0) index = 0;
+  if (index >= totalSlides) index = totalSlides - 1;
+  studentSlideIndex = index;
+
+  const slide = slides[studentSlideIndex];
+
+  // Title & Badges
+  const activeTitle = document.getElementById('activeStoryTitle');
+  const badgeGrade = document.getElementById('storyBadgeGrade');
+  const badgeChapter = document.getElementById('storyBadgeChapter');
+  const badgeCharacters = document.getElementById('storyBadgeCharacters');
+
+  if (activeTitle) activeTitle.textContent = currentStudentStory.title || `The Story of ${currentStudentStory.topic}`;
+  if (badgeGrade) badgeGrade.innerHTML = `<i data-lucide="graduation-cap" style="width: 12px; height: 12px;"></i> ${escapeHtml(currentStudentStory.grade || 'Grade 6')}`;
+  if (badgeChapter) badgeChapter.textContent = `Chapter ${studentSlideIndex + 1} of ${totalSlides}`;
+
+  if (badgeCharacters) {
+    if (Array.isArray(currentStudentStory.characters) && currentStudentStory.characters.length > 0) {
+      badgeCharacters.style.display = 'inline-flex';
+      badgeCharacters.innerHTML = `<i data-lucide="users" style="width: 12px; height: 12px;"></i> ${escapeHtml(currentStudentStory.characters.slice(0, 3).join(', '))}`;
+    } else {
+      badgeCharacters.style.display = 'none';
+    }
+  }
+
+  // Chapter Header & Text
+  const chapterHeader = document.getElementById('studentChapterHeader');
+  const textEl = document.getElementById('studentSlideStoryText');
+  const takeawayBox = document.getElementById('studentTakeawayBox');
+  const takeawayText = document.getElementById('studentTakeawayText');
+
+  if (chapterHeader) {
+    const conceptName = slide.concept || `Chapter ${studentSlideIndex + 1}`;
+    chapterHeader.innerHTML = `<i data-lucide="sparkle" style="width: 14px; height: 14px;"></i> ${escapeHtml(conceptName)}`;
+  }
+
+  if (textEl) {
+    textEl.innerHTML = formatStoryText(slide.subtitle || '');
+  }
+
+  // Educational Takeaway (Show on the last slide if available)
+  if (takeawayBox && takeawayText) {
+    const isLastSlide = studentSlideIndex === totalSlides - 1;
+    if (isLastSlide && currentStudentStory.key_takeaway) {
+      takeawayBox.style.display = 'block';
+      let cleanTakeaway = escapeHtml(currentStudentStory.key_takeaway);
+      cleanTakeaway = cleanTakeaway.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      takeawayText.innerHTML = cleanTakeaway;
+    } else {
+      takeawayBox.style.display = 'none';
+    }
+  }
+
+  // Image Frame Handling
+  const imgEl = document.getElementById('studentSlideImg');
+  const placeholderEl = document.getElementById('studentImgPlaceholder');
+
+  if (imgEl && placeholderEl) {
+    if (slide.image_url && slide.image_status !== 'failed') {
+      imgEl.style.display = 'none';
+      placeholderEl.style.display = 'block';
+      placeholderEl.innerHTML = `
+        <span class="loading-spinner" style="width: 24px; height: 24px; margin-bottom: 6px;"></span>
+        <p style="margin: 0; font-size: 0.82rem; color: #94a3b8;">Loading chapter illustration...</p>
+      `;
+
+      imgEl.onload = () => {
+        imgEl.style.display = 'block';
+        placeholderEl.style.display = 'none';
+      };
+      imgEl.onerror = () => {
+        handleStudentImageError(imgEl);
+      };
+      imgEl.src = slide.image_url;
+    } else {
+      imgEl.style.display = 'none';
+      placeholderEl.style.display = 'block';
+      placeholderEl.innerHTML = `
+        <i data-lucide="image-off" style="width: 32px; height: 32px; color: #f87171; margin-bottom: 6px;"></i>
+        <p style="margin: 0; font-size: 0.82rem; color: #94a3b8;">Illustration will appear shortly</p>
+      `;
+    }
+  }
+
+  // Navigation Buttons
+  const btnPrev = document.getElementById('btnPrevSlide');
+  const btnNext = document.getElementById('btnNextSlide');
+
+  if (btnPrev) {
+    btnPrev.disabled = studentSlideIndex === 0;
+    btnPrev.style.opacity = studentSlideIndex === 0 ? '0.4' : '1';
+    btnPrev.style.cursor = studentSlideIndex === 0 ? 'not-allowed' : 'pointer';
+  }
+
+  if (btnNext) {
+    const isLast = studentSlideIndex === totalSlides - 1;
+    btnNext.innerHTML = isLast ? 'Finished 🌟' : 'Next <i data-lucide="chevron-right"></i>';
+  }
+
+  // Page Dots
+  const dotsContainer = document.getElementById('studentStoryDots');
+  if (dotsContainer) {
+    let dotsHtml = '';
+    for (let i = 0; i < totalSlides; i++) {
+      const isActive = i === studentSlideIndex;
+      dotsHtml += `
+        <button type="button" class="story-nav-dot ${isActive ? 'active' : ''}" 
+                onclick="goToStudentSlide(${i})" 
+                title="Go to Chapter ${i + 1}">
+        </button>
+      `;
+    }
+    dotsContainer.innerHTML = dotsHtml;
+  }
+
+  // Stop narration if it was playing for the previous slide
+  if (window.speechSynthesis && isStorySpeaking) {
+    window.speechSynthesis.cancel();
+    isStorySpeaking = false;
+    updateStoryAudioButtonState();
+  }
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function nextStudentSlide() {
+  if (!currentStudentStory || !currentStudentStory.slides) return;
+  if (studentSlideIndex < currentStudentStory.slides.length - 1) {
+    renderStudentStorySlide(studentSlideIndex + 1);
+  } else {
+    // Reached the end! Prompt to explore full story or quiz
+    showToast("🎉 Great job finishing the story! Explore the quiz or read again.");
+  }
+}
+
+function prevStudentSlide() {
+  if (!currentStudentStory || !currentStudentStory.slides) return;
+  if (studentSlideIndex > 0) {
+    renderStudentStorySlide(studentSlideIndex - 1);
+  }
+}
+
+function goToStudentSlide(index) {
+  renderStudentStorySlide(index);
+}
+
+function handleStudentImageError(imgEl) {
+  if (!imgEl) return;
+  const slide = (currentStudentStory && currentStudentStory.slides) ? currentStudentStory.slides[studentSlideIndex] : null;
+  
+  // If Pollinations failed/timed out, try the high-quality curated educational fallback
+  if (slide && slide.fallback_url && imgEl.src !== slide.fallback_url) {
+    imgEl.src = slide.fallback_url;
+    imgEl.style.display = 'block';
+    const placeholderEl = document.getElementById('studentImgPlaceholder');
+    if (placeholderEl) placeholderEl.style.display = 'none';
+    return;
+  }
+
+  imgEl.style.display = 'none';
+  const placeholderEl = document.getElementById('studentImgPlaceholder');
+  if (placeholderEl) {
+    placeholderEl.style.display = 'block';
+    placeholderEl.innerHTML = `
+      <i data-lucide="book-open" style="width: 36px; height: 36px; color: #a78bfa; margin-bottom: 6px;"></i>
+      <p style="margin: 0 0 8px 0; font-size: 0.85rem; color: #cbd5e1;">Story Chapter Illustration</p>
+      <button type="button" onclick="retryStudentImage()" class="btn-3d btn-3d-purple" style="font-size: 0.75rem; padding: 4px 10px; display: inline-flex; align-items: center; gap: 4px;">
+        <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Retry Image
+      </button>
+    `;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+}
+
+function retryStudentImage() {
+  if (!currentStudentStory || !currentStudentStory.slides) return;
+  const slide = currentStudentStory.slides[studentSlideIndex];
+  if (!slide) return;
+  const newSeed = Math.floor(Math.random() * 900000) + 100000;
+  const cleanTopic = encodeURIComponent(currentStudentStory.topic || 'science');
+  slide.image_url = `https://image.pollinations.ai/prompt/Charming%20colorful%20storybook%20illustration%20of%20${cleanTopic}%20step%20${studentSlideIndex + 1}?width=800&height=450&seed=${newSeed}&nologo=true`;
+  renderStudentStorySlide(studentSlideIndex);
+}
+
+function toggleStorySpeech() {
+  if (!('speechSynthesis' in window)) {
+    alert("Speech Synthesis is not supported in this browser.");
+    return;
+  }
+
+  if (isStorySpeaking) {
+    window.speechSynthesis.cancel();
+    isStorySpeaking = false;
+    updateStoryAudioButtonState();
+    return;
+  }
+
+  if (!currentStudentStory || !currentStudentStory.slides) return;
+
+  const currentSlide = currentStudentStory.slides[studentSlideIndex];
+  if (!currentSlide || !currentSlide.subtitle) return;
+
+  const textToRead = currentSlide.subtitle.replace(/[*#]/g, '');
+  const utterance = new SpeechSynthesisUtterance(textToRead);
+  utterance.rate = 0.92; // slightly slower, clear storytelling pace
+  utterance.pitch = 1.05; // warm, engaging narrator tone
+
+  utterance.onstart = () => {
+    isStorySpeaking = true;
+    updateStoryAudioButtonState();
+  };
+
+  utterance.onend = () => {
+    isStorySpeaking = false;
+    updateStoryAudioButtonState();
+  };
+
+  utterance.onerror = () => {
+    isStorySpeaking = false;
+    updateStoryAudioButtonState();
+  };
+
+  window.speechSynthesis.cancel(); // cancel any ongoing speech
+  window.speechSynthesis.speak(utterance);
+}
+
+function updateStoryAudioButtonState() {
+  const btn = document.getElementById('btnStoryReadAloud');
+  const icon = document.getElementById('storyAudioIcon');
+  const text = document.getElementById('storyAudioText');
+  if (!btn) return;
+
+  if (isStorySpeaking) {
+    btn.classList.add('active-audio');
+    if (icon) icon.setAttribute('data-lucide', 'square');
+    if (text) text.textContent = 'Stop';
+  } else {
+    btn.classList.remove('active-audio');
+    if (icon) icon.setAttribute('data-lucide', 'volume-2');
+    if (text) text.textContent = 'Listen';
+  }
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function toggleStudentFullStory() {
+  const slideView = document.getElementById('studentSlideView');
+  const fullContainer = document.getElementById('studentFullStoryContainer');
+  const fullContent = document.getElementById('studentFullStoryContent');
+  const viewText = document.getElementById('storyViewText');
+  const viewIcon = document.getElementById('storyViewIcon');
+
+  if (!slideView || !fullContainer || !currentStudentStory) return;
+
+  isStudentFullStoryMode = !isStudentFullStoryMode;
+
+  if (isStudentFullStoryMode) {
+    slideView.style.display = 'none';
+    fullContainer.style.display = 'block';
+    if (viewText) viewText.textContent = 'Slide View';
+    if (viewIcon) viewIcon.setAttribute('data-lucide', 'layers');
+
+    // Populate full story chapters
+    let html = '';
+    const slides = currentStudentStory.slides || [];
+    slides.forEach((s, idx) => {
+      let formatted = formatStoryText(s.subtitle || '');
+
+      html += `
+        <div class="full-story-chapter-item">
+          <div style="font-size: 0.82rem; font-weight: 800; text-transform: uppercase; color: #8b5cf6; margin-bottom: 8px;">
+            ${escapeHtml(s.concept || `Chapter ${idx + 1}`)}
+          </div>
+          ${s.image_url ? `
+            <img src="${escapeHtml(s.image_url)}" alt="Chapter ${idx + 1} Illustration" onerror="this.style.display='none';" />
+          ` : ''}
+          <p style="font-size: 1.02rem; line-height: 1.65; color: #1e293b; margin: 0;">
+            ${formatted}
+          </p>
+        </div>
+      `;
+    });
+
+    if (currentStudentStory.key_takeaway) {
+      let cleanT = escapeHtml(currentStudentStory.key_takeaway).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      html += `
+        <div class="story-takeaway-card" style="margin-top: 10px;">
+          <h5><i data-lucide="lightbulb" style="width: 15px; height: 15px;"></i> Science Takeaway:</h5>
+          <p>${cleanT}</p>
+        </div>
+      `;
+    }
+
+    fullContent.innerHTML = html;
+  } else {
+    slideView.style.display = 'block';
+    fullContainer.style.display = 'none';
+    if (viewText) viewText.textContent = 'Full Story';
+    if (viewIcon) viewIcon.setAttribute('data-lucide', 'book');
+    renderStudentStorySlide(studentSlideIndex);
+  }
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 

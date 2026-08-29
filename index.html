@@ -774,58 +774,162 @@
             <div class="story-tab-grid">
 
               <!-- Input Panel -->
-              <div class="story-creator-panel">
-                <label for="gradeSelect" style="font-weight: 600; margin-right: 8px;">Choose Your Learning
-                  Level:</label>
-                <select id="gradeSelect" class="grade-select"
-                  style="margin-bottom: 12px; padding: 4px 8px; border-radius: 4px;">
-                  <option value="1">Grade 1</option>
-                  <option value="2">Grade 2</option>
-                  <option value="3">Grade 3</option>
-                  <option value="4">Grade 4</option>
-                  <option value="5">Grade 5</option>
-                  <option value="6" selected>Grade 6</option>
-                  <option value="7">Grade 7</option>
-                  <option value="8">Grade 8</option>
-                  <option value="9">Grade 9</option>
-                  <option value="10">Grade 10</option>
-                </select>
-                <h3>Transform boring topics into stories</h3>
-                <p>Type in any topic from your textbook, and the AI will weave it into an illustrated, engaging fable.
+              <div class="story-creator-panel card-3d" style="padding: 22px; background: var(--bg-card, #ffffff); border-radius: 16px; border: 2px solid var(--border-thick, #e2e8f0);">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                  <div style="background: #f3e8ff; color: #7e22ce; padding: 8px; border-radius: 10px; display: inline-flex;">
+                    <i data-lucide="book-open" style="width: 20px; height: 20px;"></i>
+                  </div>
+                  <h3 style="margin: 0; font-size: 1.3rem; color: var(--text-heading, #1e293b);">Illustrated Story Mode</h3>
+                </div>
+                <p style="margin-bottom: 16px; font-size: 0.92rem; color: var(--text-muted, #64748b);">
+                  Type any school topic and our AI storyteller will create an illustrated adventure where characters communicate with each other to explain the concepts step-by-step.
                 </p>
 
-                <textarea class="story-input-field" rows="4"
-                  placeholder="Enter a subject (e.g. Water evaporation, Magna Carta, Volcanos, Prime Numbers)..."
-                  id="storyInput"></textarea>
+                <div style="margin-bottom: 14px;">
+                  <label for="gradeSelect" style="display: block; font-weight: 700; font-size: 0.88rem; margin-bottom: 6px; color: var(--text-heading, #1e293b);">Choose Your Learning Level:</label>
+                  <select id="gradeSelect" class="grade-select" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1.5px solid var(--border-thick, #cbd5e1); font-size: 0.92rem;">
+                    <option value="1">Grade 1 (Primary)</option>
+                    <option value="2">Grade 2 (Primary)</option>
+                    <option value="3">Grade 3 (Primary)</option>
+                    <option value="4">Grade 4 (Elementary)</option>
+                    <option value="5">Grade 5 (Elementary)</option>
+                    <option value="6" selected>Grade 6 (Middle School)</option>
+                    <option value="7">Grade 7 (Middle School)</option>
+                    <option value="8">Grade 8 (Middle School)</option>
+                    <option value="9">Grade 9 (High School)</option>
+                    <option value="10">Grade 10 (High School)</option>
+                  </select>
+                </div>
 
+                <div style="margin-bottom: 14px;">
+                  <label for="storyInput" style="display: block; font-weight: 700; font-size: 0.88rem; margin-bottom: 6px; color: var(--text-heading, #1e293b);">What topic do you want to explore?</label>
+                  <textarea class="story-input-field" rows="3"
+                    placeholder="e.g. Photosynthesis, How water evaporates, Gravity, The Solar System, Fractions with Pizza..."
+                    id="storyInput"></textarea>
+                </div>
 
+                <!-- Quick Presets -->
+                <div class="story-presets">
+                  <h4><i data-lucide="sparkles" style="width: 14px; height: 14px; color: #8b5cf6;"></i> Popular Topics to Try:</h4>
+                  <div class="preset-buttons">
+                    <button type="button" class="btn-preset" onclick="applyStoryPreset('Photosynthesis')">🌿 Photosynthesis</button>
+                    <button type="button" class="btn-preset" onclick="applyStoryPreset('Water Evaporation & Rain')">💧 Water Cycle</button>
+                    <button type="button" class="btn-preset" onclick="applyStoryPreset('Gravity & Motion')">🍎 Gravity</button>
+                    <button type="button" class="btn-preset" onclick="applyStoryPreset('Fractions with Pizza')">🍕 Fractions</button>
+                    <button type="button" class="btn-preset" onclick="applyStoryPreset('Volcano Eruptions')">🌋 Volcanoes</button>
+                    <button type="button" class="btn-preset" onclick="applyStoryPreset('The Solar System')">🪐 Solar System</button>
+                  </div>
+                </div>
 
-                <button class="btn-3d btn-3d-purple" onclick="generateStoryFromInput()" id="storyGenerateBtn">
-                  <i data-lucide="sparkles"></i> Generate Interactive Story
+                <button class="btn-3d btn-3d-purple" onclick="generateStoryFromInput()" id="storyGenerateBtn" style="width: 100%; padding: 13px; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                  <i data-lucide="sparkles"></i> <span id="storyGenerateBtnText">Generate Illustrated Story</span>
                 </button>
               </div>
 
               <!-- Story Viewer Screen -->
               <div class="card-3d story-viewer-panel" id="storyViewer">
 
-                <!-- Initial State -->
+                <!-- Initial Placeholder State -->
                 <div class="story-placeholder" id="storyPlaceholder">
-                  <i data-lucide="book-open"></i>
-                  <h4>Your illustrated story will appear here</h4>
-                  <p style="font-size: 0.9rem; max-width: 300px; margin: 0 auto;">Select or type a topic and click
-                    generate to begin the journey.</p>
+                  <div style="background: #f5f3ff; width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
+                    <i data-lucide="book-open" style="font-size: 2.2rem; color: #8b5cf6;"></i>
+                  </div>
+                  <h4 style="margin: 0; font-size: 1.25rem; color: var(--text-heading, #1e293b);">Your Illustrated Storybook</h4>
+                  <p style="font-size: 0.9rem; max-width: 320px; margin: 0 auto; color: var(--text-muted, #64748b);">
+                    Type a topic or pick one of the presets above, then click <strong>Generate Illustrated Story</strong> to start your learning journey!
+                  </p>
+                </div>
+
+                <!-- Loading State -->
+                <div id="storyLoadingState" style="display: none; padding: 40px 20px; text-align: center;">
+                  <span class="loading-spinner" style="width: 38px; height: 38px; border-width: 4px; margin-bottom: 16px;"></span>
+                  <h4 id="storyLoadingTitle" style="color: #7c3aed; margin-bottom: 6px; font-size: 1.15rem;">Weaving your story with AI characters...</h4>
+                  <p id="storyLoadingSubtext" style="color: var(--text-muted, #64748b); font-size: 0.88rem; margin: 0;">Generating character dialogues and creating colorful illustrations.</p>
                 </div>
 
                 <!-- Active State -->
                 <div class="story-content-box" id="storyContentBox">
-                  <h3 class="story-title" id="activeStoryTitle">The Adventure of Splash</h3>
-                  <div class="story-illustration" id="storyIllustration">
-                    <!-- Dynamic SVG Illustration placeholders based on category -->
-                    <i data-lucide="cloud-rain"></i>
+                  
+                  <!-- Top Bar with Title, Badges & Audio Narration -->
+                  <div class="story-reader-header">
+                    <div>
+                      <h3 class="story-title" id="activeStoryTitle">The Adventure of Splash</h3>
+                      <div class="story-meta-tags">
+                        <span class="story-badge story-badge-purple" id="storyBadgeGrade">
+                          <i data-lucide="graduation-cap" style="width: 12px; height: 12px;"></i> Grade 6
+                        </span>
+                        <span class="story-badge story-badge-blue" id="storyBadgeChapter">
+                          Chapter 1 of 5
+                        </span>
+                        <span class="story-badge story-badge-green" id="storyBadgeCharacters" style="display: none;">
+                          <i data-lucide="users" style="width: 12px; height: 12px;"></i> 
+                        </span>
+                      </div>
+                    </div>
+
+                    <div class="story-reader-actions">
+                      <button type="button" class="btn-story-tool" id="btnStoryReadAloud" onclick="toggleStorySpeech()" title="Listen to narration">
+                        <i data-lucide="volume-2" id="storyAudioIcon"></i> <span id="storyAudioText">Listen</span>
+                      </button>
+                      <button type="button" class="btn-story-tool" id="btnStoryFullToggle" onclick="toggleStudentFullStory()" title="Toggle full story view">
+                        <i data-lucide="book" id="storyViewIcon"></i> <span id="storyViewText">Full Story</span>
+                      </button>
+                    </div>
                   </div>
-                  <div class="story-text-container" id="storyTextContainer">
-                    <!-- Text paragraphs dynamically inserted here -->
+
+                  <!-- Single Slide / Chapter View -->
+                  <div id="studentSlideView">
+                    <div class="story-slide-card">
+                      <!-- AI Illustrated Picture Frame -->
+                      <div class="student-illustration-frame" id="studentIllustrationFrame">
+                        <!-- Dynamic Image -->
+                        <img id="studentSlideImg" src="" alt="Story Illustration" style="display: none;" onerror="handleStudentImageError(this)" />
+                        <div id="studentImgPlaceholder" style="color: #94a3b8; text-align: center; padding: 20px;">
+                          <i data-lucide="image" style="width: 36px; height: 36px; margin-bottom: 6px;"></i>
+                          <p style="margin: 0; font-size: 0.85rem;">Generating illustration...</p>
+                        </div>
+                      </div>
+
+                      <!-- Chapter Title & Story Dialogue Box -->
+                      <div class="story-chapter-header" id="studentChapterHeader">
+                        <i data-lucide="sparkle" style="width: 14px; height: 14px;"></i> Chapter 1: The Adventure Begins
+                      </div>
+                      <div class="story-dialogue-box">
+                        <p id="studentSlideStoryText">
+                          Story text loading...
+                        </p>
+                      </div>
+
+                      <!-- Educational Key Takeaway Box -->
+                      <div class="story-takeaway-card" id="studentTakeawayBox" style="display: none;">
+                        <h5><i data-lucide="lightbulb" style="width: 15px; height: 15px;"></i> What We Learned:</h5>
+                        <p id="studentTakeawayText"></p>
+                      </div>
+                    </div>
+
+                    <!-- Slide Navigation Bar -->
+                    <div class="student-story-nav" id="studentStoryNav">
+                      <button type="button" class="btn-3d" id="btnPrevSlide" onclick="prevStudentSlide()" style="padding: 8px 16px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+                        <i data-lucide="chevron-left"></i> Previous
+                      </button>
+
+                      <div class="story-dots-container" id="studentStoryDots">
+                        <!-- Dots populated dynamically -->
+                      </div>
+
+                      <button type="button" class="btn-3d btn-3d-purple" id="btnNextSlide" onclick="nextStudentSlide()" style="padding: 8px 16px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+                        Next <i data-lucide="chevron-right"></i>
+                      </button>
+                    </div>
                   </div>
+
+                  <!-- Full Story Scroll View (Alternate mode) -->
+                  <div id="studentFullStoryContainer" style="display: none;">
+                    <div class="full-story-scroll-container" id="studentFullStoryContent">
+                      <!-- Populated dynamically -->
+                    </div>
+                  </div>
+
                 </div>
 
               </div>
@@ -1685,7 +1789,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=8"></script>
 </body>
 
 </html>

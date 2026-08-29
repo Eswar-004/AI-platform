@@ -9,40 +9,104 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import Config
 
 
+def sanitize_prompt_text(text: str) -> str:
+    """Normalize unicode characters (like subscripts CO2, smart quotes) for clean URL encoding."""
+    if not text:
+        return ""
+    # Map common subscripts and special unicode
+    replacements = {
+        '\u2080': '0', '\u2081': '1', '\u2082': '2', '\u2083': '3', '\u2084': '4',
+        '\u2085': '5', '\u2086': '6', '\u2087': '7', '\u2088': '8', '\u2089': '9',
+        '\u2018': "'", '\u2019': "'", '\u201c': '"', '\u201d': '"', '\u2014': '-', '\u2013': '-'
+    }
+    cleaned = text
+    for k, v in replacements.items():
+        cleaned = cleaned.replace(k, v)
+    return cleaned.strip()
+
+
+def get_curated_topic_image(topic: str, slide_number: int = 1) -> str:
+    """Provide high quality educational fallback image based on topic keyword."""
+    t = topic.lower()
+    
+    # Topic specific curated educational collections
+    nature_photos = [
+        "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=900&auto=format&fit=crop&q=80", # sunny green leaf
+        "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=900&auto=format&fit=crop&q=80", # sunlight forest
+        "https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?w=900&auto=format&fit=crop&q=80", # morning trees
+        "https://images.unsplash.com/photo-1448375240586-882707db888b?w=900&auto=format&fit=crop&q=80", # green forest canopy
+        "https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?w=900&auto=format&fit=crop&q=80", # animals nature meadow
+    ]
+    water_photos = [
+        "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=900&auto=format&fit=crop&q=80", # water splash
+        "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=900&auto=format&fit=crop&q=80", # clouds sky
+        "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=900&auto=format&fit=crop&q=80", # rain drops
+        "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=900&auto=format&fit=crop&q=80", # ocean water cycle
+        "https://images.unsplash.com/photo-1498084393753-b411b2d26b34?w=900&auto=format&fit=crop&q=80", # river nature
+    ]
+    space_photos = [
+        "https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?w=900&auto=format&fit=crop&q=80", # solar system planets
+        "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=900&auto=format&fit=crop&q=80", # earth from space
+        "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=900&auto=format&fit=crop&q=80", # starry night
+        "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=900&auto=format&fit=crop&q=80", # galaxy nebula
+        "https://images.unsplash.com/photo-1532693322450-2cb5c511067d?w=900&auto=format&fit=crop&q=80", # telescope astronomy
+    ]
+    physics_photos = [
+        "https://images.unsplash.com/photo-1507668077129-56e32842fceb?w=900&auto=format&fit=crop&q=80", # light rays gravity
+        "https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=900&auto=format&fit=crop&q=80", # science lab
+        "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=900&auto=format&fit=crop&q=80", # magnetic energy
+        "https://images.unsplash.com/photo-1518770660439-4636190af475?w=900&auto=format&fit=crop&q=80", # technology physics
+        "https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=900&auto=format&fit=crop&q=80", # scientific formula
+    ]
+
+    idx = (slide_number - 1) % 5
+    if any(k in t for k in ['photo', 'plant', 'leaf', 'tree', 'sun', 'forest', 'chlorophyll']):
+        return nature_photos[idx]
+    elif any(k in t for k in ['water', 'rain', 'evap', 'cloud', 'ocean', 'river', 'cycle']):
+        return water_photos[idx]
+    elif any(k in t for k in ['space', 'solar', 'planet', 'star', 'sun', 'moon', 'galaxy']):
+        return space_photos[idx]
+    elif any(k in t for k in ['grav', 'force', 'atom', 'physics', 'energy', 'light', 'magnet', 'volcano', 'fraction', 'math']):
+        return physics_photos[idx]
+    else:
+        return nature_photos[idx]
+
+
 def generate_single_image(image_prompt: str, style_context: str = "", slide_number: int = 1) -> dict:
     """
     Generate an educational image for a single slide using the configured provider.
-    Returns: { "success": bool, "image_url": str, "provider": str, "slide_number": int, "error": str }
+    Returns: { "success": bool, "image_url": str, "provider": str, "slide_number": int, "fallback_url": str }
     """
     if not image_prompt or not image_prompt.strip():
         return {
             "success": False,
             "error": "Image prompt is empty.",
             "slide_number": slide_number,
-            "image_url": None
+            "image_url": None,
+            "fallback_url": get_curated_topic_image("science", slide_number)
         }
 
     provider = Config.IMAGE_PROVIDER.lower()
-    width = Config.IMAGE_WIDTH
-    height = Config.IMAGE_HEIGHT
-    model = Config.IMAGE_MODEL
+    width = 800
+    height = 450
 
-    # Construct clean prompt emphasizing NO text, NO labels, high educational visual quality
-    clean_style = style_context.strip() if style_context else "Clean modern educational textbook illustration, scientifically accurate, high visual clarity"
-    clean_prompt = image_prompt.strip()
+    clean_style = sanitize_prompt_text(style_context.strip() if style_context else "Charming colorful children's book illustration, vibrant friendly characters, soft warm lighting")
+    clean_prompt = sanitize_prompt_text(image_prompt.strip())
     
-    full_prompt = f"{clean_style}. {clean_prompt}. Scientifically accurate illustration, vivid clear visuals, no text, no words, no labels, no watermark, 16:9 aspect ratio."
+    full_prompt = f"{clean_style}. {clean_prompt}. Vibrant colorful digital art, storybook scene, no text, no words, no labels, 16:9 aspect ratio."
+    fallback_image = get_curated_topic_image(clean_prompt, slide_number)
 
     try:
         if provider == "pollinations":
-            # Generate instant high-resolution AI image via Pollinations AI
             encoded_prompt = urllib.parse.quote(full_prompt)
             seed = random.randint(1000, 999999)
-            image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&seed={seed}&model={model}&nologo=true"
+            # Use fast pollinations parameters without flux to avoid 429 rate limit timeouts
+            image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&seed={seed}&nologo=true"
             
             return {
                 "success": True,
                 "image_url": image_url,
+                "fallback_url": fallback_image,
                 "provider": "pollinations",
                 "slide_number": slide_number
             }

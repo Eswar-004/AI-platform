@@ -75,8 +75,9 @@ Always prioritize clarity over length.
 
 def generate_story_ai(topic: str, grade_level: str = "6", subject: str = "") -> dict:
     """
-    Generate an educational story using Groq AI SDK.
-    Returns a dictionary with story contents.
+    Generate an engaging, character-driven educational story using Groq AI SDK.
+    Characters (plants, animals, elements, humans) communicate and converse with each other
+    to explain the concept in an easily understandable way.
     """
     if not topic or not topic.strip():
         return {
@@ -88,27 +89,62 @@ def generate_story_ai(topic: str, grade_level: str = "6", subject: str = "") -> 
     try:
         g = int(grade_level)
         if g <= 3:
-            grade_instruction = "Use very simple vocabulary, playful tone, and everyday characters."
+            grade_instruction = "Target Grade 1-3: Use very simple vocabulary, playful tone, short sentences, and cute friendly characters (talking animals, baby plants, smiling sun)."
         elif g <= 6:
-            grade_instruction = "Use engaging descriptive language with basic definitions and adventure narrative."
+            grade_instruction = "Target Grade 4-6: Use lively descriptive language, adventurous tone, friendly characters with distinct personalities who converse with each other to explain the mechanism."
         elif g <= 8:
-            grade_instruction = "Include scientific/subject terms with context and cause/effect relationships."
+            grade_instruction = "Target Grade 7-8: Balance engaging narrative dialogue with clear scientific/subject cause-and-effect explanations."
         else:
-            grade_instruction = "Use accurate subject terminology, deeper insights, and real-world applications."
+            grade_instruction = "Target High School: Use clever analogies, character dialogues, and accurate scientific principles woven into an engaging storyline."
     except ValueError:
-        grade_instruction = "Use engaging descriptive language suited for middle school students."
+        grade_instruction = "Target Middle School: Use engaging character dialogues, vivid analogies, and easy-to-understand storytelling."
 
-    prompt = f"""Write an engaging, illustrated-style short story explaining "{topic}" for a Grade {grade_level} student.
-{grade_instruction}
-Break the story into exactly 4 short paragraphs. Use characters, adventure, or analogy to explain the concept.
-Separate each paragraph with a line containing only "---".
-Do not output any introductory or summary text, just the 4 paragraphs separated by "---"."""
+    storyteller_system_prompt = """You are a world-class educational storyteller for students.
+Your superpower is turning complex textbook topics into magical, crystal-clear stories where characters (plants, animals, natural forces, atoms, or human friends) talk and communicate with each other.
+
+Storytelling Rules:
+1. Always personify key elements or introduce friendly characters (e.g. for Photosynthesis: Leo the Leaf talking to Solly the Sun and Pippy the Raindrop; for Gravity: Sir Apple chatting with Planet Earth).
+2. Have characters actively communicate in dialogue quotes ("...") so the concept feels alive and natural.
+3. Keep the explanation step-by-step, intuitive, and easy for any student to grasp.
+4. Structure the story into exactly 4 sequential chapters/paragraphs.
+5. Separate each chapter with a line containing only "---".
+6. Do not include markdown headers (# or ##) inside chapters, just the story paragraphs with dialogue.
+7. Conclude with a warm resolution where characters or animals/humans benefit from the process."""
+
+    user_prompt = f"""Write an engaging, dialogue-rich educational story explaining "{topic}" for a student ({grade_instruction}).
+
+Make characters talk to each other to explain the process step-by-step!
+Separate each of the 4 paragraphs with a line containing only "---"."""
 
     try:
-        story_text = generate_response(prompt)
+        client = Groq(api_key=Config.GROQ_API_KEY)
+        completion = client.chat.completions.create(
+            model=Config.GROQ_MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": storyteller_system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": user_prompt
+                }
+            ],
+            temperature=0.7,
+            max_completion_tokens=1200
+        )
+        story_text = completion.choices[0].message.content.strip()
+
+        # Generate a catchy title
+        title = f"The Story of {topic}"
+        first_line = story_text.split('\n')[0].strip().replace('#', '').strip()
+        if len(first_line) < 60 and not first_line.startswith('"') and len(story_text.split('---')) > 1:
+            if "story" in first_line.lower() or "adventure" in first_line.lower() or "journey" in first_line.lower():
+                title = first_line
+
         return {
             "success": True,
-            "title": f"The Story of {topic}",
+            "title": title,
             "story": story_text,
             "response": story_text,
             "topic": topic,
@@ -225,9 +261,9 @@ Ensure there are exactly {num_questions} questions. Keep explanations under 15 w
 
 def generate_storyboard(topic: str, grade: str = "6th Standard", slide_count: int = 5) -> dict:
     """
-    Generate an educational storyboard in a SINGLE Groq LLM API request.
-    Identifies learning objectives, step-by-step concepts, subtitles, and image prompts.
-    Returns: { "success": bool, "storyboard": { "title": ..., "topic": ..., "grade": ..., "shared_style_context": ..., "slides": [...] } }
+    Generate an educational storyboard with character dialogue and rich storytelling
+    in a SINGLE Groq LLM API request.
+    Characters converse with each other to explain the concept step-by-step.
     """
     import json
     import re
@@ -258,41 +294,47 @@ def generate_storyboard(topic: str, grade: str = "6th Standard", slide_count: in
             pass
 
     if grade_num <= 3:
-        grade_guideline = "Use very simple vocabulary, short sentences, playful analogies, and concrete everyday examples suitable for primary students."
+        grade_guideline = "Target Grade 1-3: Use very simple words, short sentences, and cute friendly characters (talking animals, baby leaves, smiling sun, water drops). Keep scientific jargon minimal and focus on playful conversations."
     elif grade_num <= 8:
-        grade_guideline = "Use engaging descriptive language, clear cause-and-effect relationships, and basic scientific/academic terminology suited for middle school students."
+        grade_guideline = "Target Grade 4-8: Use lively, descriptive language and friendly characters who converse with each other to explain the step-by-step process. Introduce scientific concepts through clear analogies and dialogues."
     else:
-        grade_guideline = "Use precise scientific/academic terminology, deeper conceptual mechanisms, accurate cause-and-effect analysis, and real-world applications suited for high school students."
+        grade_guideline = "Target High School: Use engaging character dialogues, vivid real-world analogies, and accurate scientific mechanisms woven into an entertaining narrative."
 
-    prompt = f"""You are an expert school science teacher and educational storyboard designer.
-Create a complete educational storyboard explaining "{topic}" for a student in "{grade_str}".
+    prompt = f"""You are an award-winning children's science author and educational storyboard designer.
+Create a delightfully engaging, character-driven story explaining "{topic}" for a student in "{grade_str}".
 
-The story MUST contain EXACTLY {count} sequential slides progressing logically:
-Slide 1: Beginning / Real-world context
-Slide 2..{count-1}: Step-by-step conceptual development & cause-and-effect relationships
-Slide {count}: Conclusion / Conceptual summary & real-world connection
+CRITICAL STORYTELLING RULE:
+Make the topic come alive by introducing friendly characters (e.g. for Photosynthesis: Leo the Leaf talking to Solly the Sun and Pippy the Raindrop, while forest animals enjoy the fresh air; for Water Cycle: Droppy the water droplet talking to the Ocean and Cloud).
+Characters MUST TALK TO EACH OTHER using dialogue quotes ("...") to explain the concepts simply and clearly.
 
-Grade Level Adaptation ({grade_str}):
+The story MUST contain EXACTLY {count} sequential chapters/slides:
+Slide 1: Introduction & Character meeting (e.g. waking up, starting the day's quest)
+Slide 2..{count-1}: Step-by-step process with characters actively conversing and helping each other
+Slide {count}: Celebration & Outcome (how animals, humans, or the ecosystem benefit from this process)
+
+Grade Level Adaptation:
 {grade_guideline}
 
 STRICT REQUIREMENTS FOR IMAGE PROMPTS ("image_prompt"):
 1. DO NOT include subtitles, paragraphs, titles, words, letters, labels, or UI text inside "image_prompt".
-2. "image_prompt" MUST describe purely visual, physical elements suitable for an text-to-image AI model (e.g. "Sun shining on a quiet blue lake, water surface showing mist rising").
-3. Provide a unified "shared_style_context" string that establishes a visually consistent textbook illustration style across all slides (e.g. "Clean modern educational textbook illustration, scientifically accurate, clear composition, soft natural lighting").
+2. "image_prompt" MUST describe purely visual, colorful storybook scenes featuring the characters in action (e.g. "A friendly vibrant green leaf character smiling at a warm golden sun in a sunny meadow, charming storybook digital art").
+3. Provide a unified "shared_style_context" (e.g. "Charming colorful children's book illustration, vibrant friendly characters, soft warm lighting, high quality digital art").
 
 Return strictly a JSON object matching this schema:
 {{
-  "title": "Understanding {topic}",
+  "title": "An exciting creative title for the story (e.g. The Secret Kitchen of Leo the Leaf)",
   "topic": "{topic}",
   "grade": "{grade_str}",
-  "learning_objective": "1-sentence core learning objective",
-  "shared_style_context": "Clean modern educational textbook illustration, scientifically accurate, suitable for {grade_str} students, consistent style",
+  "characters": ["Character 1 name", "Character 2 name"],
+  "learning_objective": "1 clear sentence summarizing what students learn",
+  "key_takeaway": "2-3 short bullet points summarizing the real science simply",
+  "shared_style_context": "Charming colorful children's book illustration, vibrant friendly characters, soft lighting, digital art",
   "slides": [
     {{
       "slide_number": 1,
-      "concept": "Core concept of step 1",
-      "subtitle": "Clear 1-2 sentence educational subtitle for step 1",
-      "image_prompt": "Purely visual description of scene 1 without any text or labels"
+      "concept": "Chapter title (e.g. Chapter 1: The Leaf's Sunny Morning)",
+      "subtitle": "2 to 4 sentences of vivid narrative where characters speak to each other with dialogue quotes (\"...\") explaining this step simply.",
+      "image_prompt": "Purely visual scene description of this chapter for an AI image generator without text or words"
     }}
   ]
 }}
@@ -305,15 +347,15 @@ Ensure there are EXACTLY {count} slides in the "slides" array with sequential sl
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an AI educational content developer and storyboard designer. Output ONLY a raw, complete JSON object matching the requested schema without any markdown code fences or conversational text."
+                    "content": "You are an expert educational storyteller and storyboard artist. Output ONLY a raw, complete JSON object matching the requested schema without any markdown code fences or conversational text."
                 },
                 {
                     "role": "user",
                     "content": user_prompt
                 }
             ],
-            temperature=0.2,
-            max_completion_tokens=2000
+            temperature=0.5,
+            max_completion_tokens=2500
         )
         return completion.choices[0].message.content.strip()
 
@@ -349,20 +391,29 @@ Ensure there are EXACTLY {count} slides in the "slides" array with sequential sl
         if isinstance(parsed, dict) and "slides" in parsed and isinstance(parsed["slides"], list) and len(parsed["slides"]) > 0:
             # Ensure sequential slide numbering and mandatory fields
             validated_slides = []
+            full_story_paragraphs = []
             for idx, slide in enumerate(parsed["slides"], 1):
+                subtitle_text = str(slide.get("subtitle", f"Step {idx}: Learning about {topic}.")).strip()
+                concept_text = str(slide.get("concept", f"Chapter {idx}: Exploring {topic}")).strip()
+                img_prompt = str(slide.get("image_prompt") or slide.get("visual_prompt") or f"Charming storybook scene showing characters exploring {topic} at step {idx}").strip()
+                
                 validated_slides.append({
                     "slide_number": idx,
-                    "concept": slide.get("concept", f"Step {idx} of {topic}"),
-                    "subtitle": slide.get("subtitle", f"Step {idx}: Learning about {topic}.").strip(),
-                    "image_prompt": slide.get("image_prompt") or slide.get("visual_prompt") or f"Educational scene illustrating {topic} step {idx}"
+                    "concept": concept_text,
+                    "subtitle": subtitle_text,
+                    "image_prompt": img_prompt
                 })
+                full_story_paragraphs.append(subtitle_text)
 
             storyboard = {
-                "title": parsed.get("title", f"Understanding {topic}"),
+                "title": parsed.get("title", f"The Adventure of {topic}"),
                 "topic": topic,
                 "grade": grade_str,
-                "learning_objective": parsed.get("learning_objective", f"Understand the core concepts of {topic}"),
-                "shared_style_context": parsed.get("shared_style_context", f"Clean modern educational textbook illustration for {grade_str} students"),
+                "characters": parsed.get("characters", []),
+                "learning_objective": parsed.get("learning_objective", f"Understand how {topic} works through a friendly story"),
+                "key_takeaway": parsed.get("key_takeaway", f"Core concepts of {topic}"),
+                "shared_style_context": parsed.get("shared_style_context", f"Charming colorful children's book illustration for {grade_str}"),
+                "full_story": "\n\n---\n\n".join(full_story_paragraphs),
                 "slides": validated_slides
             }
             return {
@@ -375,23 +426,53 @@ Ensure there are EXACTLY {count} slides in the "slides" array with sequential sl
     except Exception as e:
         print(f"Error generating storyboard AI: {e}", file=sys.stderr)
         # Fallback storyboard
-        fallback_slides = []
-        for i in range(1, count + 1):
-            fallback_slides.append({
-                "slide_number": i,
-                "concept": f"Fundamental aspect {i} of {topic}",
-                "subtitle": f"Step {i}: Learning about {topic} for {grade_str}.",
-                "image_prompt": f"Clear educational scene showing {topic} at step {i}."
+        fallback_slides = [
+            {
+                "slide_number": 1,
+                "concept": f"Chapter 1: The Wonder of {topic}",
+                "subtitle": f"\"Hello there!\" called the friendly characters gathering under the morning sky to explore the magic of {topic}. \"Are you ready to see how it works?\"",
+                "image_prompt": f"Charming storybook illustration of friendly nature characters gathering under a bright blue morning sky to learn about {topic}."
+            },
+            {
+                "slide_number": 2,
+                "concept": f"Chapter 2: The Ingredients Come Together",
+                "subtitle": f"\"Look at this!\" smiled the little helpers as each ingredient arrived right on time. Everything connected smoothly to start the amazing process of {topic}.",
+                "image_prompt": f"Cute friendly characters working together in a colorful nature scene demonstrating {topic}."
+            },
+            {
+                "slide_number": 3,
+                "concept": f"Chapter 3: The Magical Transformation",
+                "subtitle": f"\"It is working!\" they cheered as energy flowed and transformed into something wonderful. \"Nature has the most incredible recipe!\"",
+                "image_prompt": f"Glowing colorful visual transformation scene illustrating {topic} in a children's storybook style."
+            },
+            {
+                "slide_number": 4,
+                "concept": f"Chapter 4: Helping the Whole World",
+                "subtitle": f"\"Thank you!\" called the woodland animals and human friends, taking a happy breath and celebrating together. {topic} keeps our world healthy and alive!",
+                "image_prompt": f"Happy woodland animals and human friends smiling together in a lush vibrant nature meadow."
+            }
+        ]
+        if count == 5:
+            fallback_slides.insert(2, {
+                "slide_number": 3,
+                "concept": f"Chapter 3: Inside the Workshop",
+                "subtitle": f"\"Step inside and watch closely!\" whispered the guide. The microscopic workers were busy assembling every piece with perfect harmony.",
+                "image_prompt": f"A close-up magical view of natural elements working harmoniously together to power {topic}."
             })
+            for i, s in enumerate(fallback_slides, 1):
+                s["slide_number"] = i
 
         return {
             "success": True,
             "storyboard": {
-                "title": f"Understanding {topic}",
+                "title": f"The Story of {topic}",
                 "topic": topic,
                 "grade": grade_str,
-                "learning_objective": f"Learn key steps of {topic}",
-                "shared_style_context": f"Clean educational textbook illustration for {grade_str}",
+                "characters": ["Nature Friends", "Sun & Rain", "Woodland Animals"],
+                "learning_objective": f"Learn key steps of {topic} through a fun story",
+                "key_takeaway": f"Understanding how {topic} supports living things.",
+                "shared_style_context": f"Charming colorful storybook illustration for {grade_str}",
+                "full_story": "\n\n---\n\n".join([s["subtitle"] for s in fallback_slides]),
                 "slides": fallback_slides
             },
             "warning": f"Generated using fallback structure due to AI format issue: {str(e)}"
@@ -400,6 +481,7 @@ Ensure there are EXACTLY {count} slides in the "slides" array with sequential sl
 
 # Alias for backward compatibility
 generate_image_story_ai = generate_storyboard
+
 
 
 
