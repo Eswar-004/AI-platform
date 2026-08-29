@@ -3,7 +3,7 @@
 // ==========================================
 // CENTRALIZED API & BACKEND URL CONFIGURATION
 // ==========================================
-const BACKEND_BASE_URL = "http://localhost:5000";
+const BACKEND_BASE_URL = window.location.protocol + "//" + (window.location.hostname || "127.0.0.1") + ":5000";
 const API_BASE_URL = `${BACKEND_BASE_URL}/api/ai`;
 
 // Global Auth State
@@ -27,17 +27,14 @@ async function callAiApi(prompt) {
       },
       body: JSON.stringify({ prompt })
     });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    if (data.success === false) {
-      throw new Error(data.response || "Unable to contact AI server.");
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) {
+      throw new Error(data.response || data.message || `HTTP error! status: ${response.status}`);
     }
     return data.response;
   } catch (error) {
     console.error("Failed to fetch AI response:", error);
-    return "Unable to contact AI server.";
+    throw error;
   }
 }
 
@@ -487,7 +484,22 @@ Break the story into exactly 4 short paragraphs. Use characters, adventure, or a
 Separate each paragraph with a line containing only "---".
 Do not output any introductory or summary text, just the 4 paragraphs separated by "---".`;
 
-  const aiStory = await callAiApi(promptText);
+  let aiStory = "";
+  try {
+    const response = await fetch(`${BACKEND_BASE_URL}/api/story/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic: inputVal, gradeLevel: selectedGrade })
+    });
+    const data = await response.json();
+    if (!response.ok || data.success === false) {
+      throw new Error(data.message || data.response || "Failed to generate story");
+    }
+    aiStory = data.story || data.response || "";
+  } catch (err) {
+    console.warn("Falling back to chat API for story:", err);
+    aiStory = await callAiApi(promptText);
+  }
 
   // Split story into paragraphs
   let paragraphs = aiStory.split('---').map(p => p.trim()).filter(p => p.length > 0);
@@ -1064,42 +1076,27 @@ async function startMockQuiz() {
     generateBtn.textContent = "Generating AI Quiz... 🧠";
   }
 
-  const typeDesc = qTypeVal === 'Fill in the Blank' 
-    ? 'fill-in-the-blank style (where each question has a blank ___ for the answer)' 
-    : 'multiple choice';
-
-  const promptText = `Generate a 3-question ${typeDesc} quiz on the subject "${subjectVal}" and topic "${topicVal}" with difficulty "${diffVal}" for a Grade 6 student.
-Return the response strictly as a JSON object matching this schema:
-{
-  "questions": [
-    {
-      "q": "Question text?",
-      "options": ["A) option A", "B) option B", "C) option C", "D) option D"],
-      "correct": 0,
-      "explain": "Explanation text"
-    }
-  ]
-}
-Ensure there are exactly 3 questions. The 'correct' field must be the index (0, 1, 2, or 3) of the correct answer. Return ONLY the JSON object. Do not include markdown formatting, backticks, or extra text.`;
-
   try {
-    const responseText = await callAiApi(promptText);
-    if (responseText === "Unable to contact AI server.") {
-      throw new Error("Unable to contact AI server.");
-    }
-    
-    let cleanJsonText = responseText.trim();
-    if (cleanJsonText.startsWith("```")) {
-      cleanJsonText = cleanJsonText.replace(/^```(json)?/, "").replace(/```$/, "").trim();
-    }
-    
-    const parsedData = JSON.parse(cleanJsonText);
-    if (parsedData && Array.isArray(parsedData.questions) && parsedData.questions.length > 0) {
-      activeQuestions = parsedData.questions;
-    } else {
-      throw new Error("Invalid questions array in parsed JSON");
+    const response = await fetch(`${BACKEND_BASE_URL}/api/ai/quiz`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        subject: subjectVal,
+        topic: topicVal,
+        difficulty: diffVal,
+        question_type: qTypeVal,
+        num_questions: 3
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success || !Array.isArray(data.questions) || data.questions.length === 0) {
+      throw new Error(data.message || "Invalid response structure from AI quiz server.");
     }
 
+    activeQuestions = data.questions;
     quizIndex = 0;
     quizScore = 0;
 
@@ -1109,7 +1106,7 @@ Ensure there are exactly 3 questions. The 'correct' field must be the index (0, 
     showQuizQuestion();
   } catch (e) {
     console.error("Failed to generate custom AI Quiz:", e);
-    alert("Unable to contact AI server.");
+    alert(e.message || "Unable to contact AI server.");
   } finally {
     if (generateBtn) {
       generateBtn.disabled = false;

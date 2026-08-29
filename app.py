@@ -23,7 +23,7 @@ db.init_app(app)
 jwt.init_app(app)
 
 # Enable CORS for cross-origin frontend requests from local dev server
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 # Register blueprints
 app.register_blueprint(ai_bp, url_prefix="/api/ai")

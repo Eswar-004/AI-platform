@@ -4,7 +4,7 @@ import os
 
 # Adjust path to import services if run from different Cwds
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from services.ai_service import generate_response, generate_story_ai
+from services.ai_service import generate_response, generate_story_ai, generate_quiz_ai
 
 ai_bp = Blueprint("ai", __name__)
 
@@ -39,10 +39,54 @@ def ai_chat():
         }), 200
     except Exception as e:
         print(f"Error handling AI response: {e}", file=sys.stderr)
-        # Return exact error response structure requested by user
         return jsonify({
             "success": False,
-            "response": "Unable to generate AI response."
+            "response": f"AI service error: {str(e)}"
+        }), 500
+
+
+@ai_bp.route("/quiz", methods=["POST"])
+def ai_quiz():
+    """
+    POST /api/ai/quiz
+    Expects request JSON payload:
+    {
+        "subject": "Science",
+        "topic": "Water Cycles",
+        "difficulty": "Medium",
+        "question_type": "MCQ",
+        "num_questions": 3
+    }
+    Response JSON payload:
+    {
+        "success": true,
+        "questions": [...]
+    }
+    """
+    data = request.get_json() or {}
+    subject = str(data.get("subject", "Science")).strip()
+    topic = str(data.get("topic", "Water Cycles")).strip()
+    difficulty = str(data.get("difficulty", "Medium")).strip()
+    question_type = str(data.get("question_type", data.get("questionType", "MCQ"))).strip()
+    try:
+        num_questions = int(data.get("num_questions", data.get("numQuestions", 3)))
+    except (ValueError, TypeError):
+        num_questions = 3
+
+    try:
+        quiz_data = generate_quiz_ai(
+            subject=subject,
+            topic=topic,
+            difficulty=difficulty,
+            question_type=question_type,
+            num_questions=num_questions
+        )
+        return jsonify(quiz_data), 200
+    except Exception as e:
+        print(f"Error in /api/ai/quiz: {e}", file=sys.stderr)
+        return jsonify({
+            "success": False,
+            "message": f"Quiz generation error: {str(e)}"
         }), 500
 
 
@@ -84,6 +128,7 @@ def ai_story():
         print(f"Error in /api/ai/story: {e}", file=sys.stderr)
         return jsonify({
             "success": False,
-            "response": "Unable to generate story."
+            "response": f"Story generation error: {str(e)}"
         }), 500
+
 
