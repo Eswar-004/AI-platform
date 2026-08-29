@@ -12,7 +12,11 @@ class Config:
     # MySQL Configuration
     MYSQL_HOST = "localhost"
     MYSQL_USER = "root"
+<<<<<<< HEAD
     MYSQL_PASSWORD = "2004"
+=======
+    MYSQL_PASSWORD = "root"
+>>>>>>> f8e5567d7cf1e9aa6737d40e60bfc3240f9718e3
     MYSQL_DATABASE = "edumate_db"
     MYSQL_PORT = 3306
 
