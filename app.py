@@ -132,6 +132,23 @@ def serve_videos_static(filename):
     return send_from_directory(videos_dir, filename)
 
 
+@app.route("/", methods=["GET"])
+def serve_index():
+    """Serve the main student & teacher application HTML."""
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    return send_from_directory(root_dir, "index.html")
+
+
+@app.route("/<path:filename>", methods=["GET"])
+def serve_root_files(filename):
+    """Serve root static assets (CSS, JS, images, logo, etc.)."""
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(root_dir, filename)
+    if os.path.isfile(file_path):
+        return send_from_directory(root_dir, filename)
+    return jsonify({"error": f"File '{filename}' not found"}), 404
+
+
 # Run initialization logic
 init_db_and_seed()
 
