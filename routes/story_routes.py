@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 import sys
 import os
+import json
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from extensions import db
@@ -10,6 +11,24 @@ from services.image_service import generate_images_parallel, generate_single_ima
 from utils.auth import get_current_user
 
 story_bp = Blueprint("story", __name__)
+
+
+@story_bp.route("", methods=["GET"])
+@story_bp.route("/", methods=["GET"])
+def get_storyboard_endpoint():
+    """
+    GET /api/story/
+    Returns the contents of storymode/storyboard.json without modifying story content.
+    """
+    json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "storymode", "storyboard.json")
+    if not os.path.exists(json_path):
+        return jsonify({"success": False, "message": "storyboard.json not found in storymode/ directory."}), 404
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return jsonify(data), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Failed to read storyboard.json: {str(e)}"}), 500
 
 
 @story_bp.route("/generate", methods=["POST"])

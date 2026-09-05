@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 import sys
 import os
@@ -116,6 +116,20 @@ def db_test():
 @app.route("/health", methods=["GET"])
 def health_check():
     return jsonify({"status": "ok", "message": "AI backend is running"}), 200
+
+
+@app.route("/storymode/<path:filename>", methods=["GET"])
+def serve_storymode_static(filename):
+    """Serve images and assets from the storymode directory."""
+    storymode_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "storymode")
+    return send_from_directory(storymode_dir, filename)
+
+
+@app.route("/videos/<path:filename>", methods=["GET"])
+def serve_videos_static(filename):
+    """Serve video lessons from the videos directory."""
+    videos_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "videos")
+    return send_from_directory(videos_dir, filename)
 
 
 # Run initialization logic

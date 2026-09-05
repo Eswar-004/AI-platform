@@ -139,18 +139,6 @@ function appendChatMessage(sender, content, key = null) {
       </div>
     `;
     bubble.appendChild(actions);
-    
-    // Render voice player icon inside standard explanation bubbles
-    const audioWidget = document.createElement('div');
-    audioWidget.className = 'chat-voice-widget';
-    audioWidget.innerHTML = `
-      <button class="play-btn" onclick="playSpeechBubble(this)"><i data-lucide="volume-2"></i></button>
-      <div class="voice-wave-canvas">
-        <div class="voice-wave-bar"></div><div class="voice-wave-bar"></div><div class="voice-wave-bar"></div><div class="voice-wave-bar"></div><div class="voice-wave-bar"></div><div class="voice-wave-bar"></div>
-      </div>
-      <span style="font-size:0.75rem; color:var(--color-sky-dark); font-weight:700;">Listen Explaining</span>
-    `;
-    bubble.insertBefore(audioWidget, bubble.firstChild);
   }
 
   msg.appendChild(bubble);
@@ -168,8 +156,6 @@ async function changeExplanationStyle(conceptKey, style, buttonEl) {
   
   // Extract original text content, excluding widgets
   const tempDiv = bubble.cloneNode(true);
-  const voice = tempDiv.querySelector('.chat-voice-widget');
-  if (voice) voice.remove();
   const actions = tempDiv.querySelector('.explain-again-wrapper');
   if (actions) actions.remove();
   
@@ -194,11 +180,9 @@ async function changeExplanationStyle(conceptKey, style, buttonEl) {
   contentArea.className = 'chat-explanation-content';
   contentArea.innerHTML = "<p><em>Thinking of a new explanation style... ✨</em></p>";
   
-  const voiceWidget = bubble.querySelector('.chat-voice-widget');
   const actionsWidget = bubble.querySelector('.explain-again-wrapper');
   
   bubble.innerHTML = '';
-  if (voiceWidget) bubble.appendChild(voiceWidget);
   bubble.appendChild(contentArea);
   if (actionsWidget) bubble.appendChild(actionsWidget);
   
@@ -226,44 +210,6 @@ async function changeExplanationStyle(conceptKey, style, buttonEl) {
   }
 }
 
-// Play speech bubble mock audio
-function playSpeechBubble(button) {
-  const waveBars = button.parentElement.querySelectorAll('.voice-wave-bar');
-  const playIcon = button.querySelector('i');
-  
-  // Toggle states
-  if (playIcon.getAttribute('data-lucide') === 'volume-2') {
-    playIcon.setAttribute('data-lucide', 'pause');
-    waveBars.forEach((bar, idx) => {
-      bar.classList.add('active');
-      bar.style.height = `${Math.floor(Math.random() * 15) + 6}px`;
-      bar.style.animation = `wavePulse 1s infinite ease-in-out alternate`;
-      bar.style.animationDelay = `${idx * 0.15}s`;
-    });
-    
-    // Stop speaking mock audio after 4 seconds
-    setTimeout(() => {
-      playIcon.setAttribute('data-lucide', 'volume-2');
-      waveBars.forEach(bar => {
-        bar.classList.remove('active');
-        bar.style.height = '4px';
-        bar.style.animation = 'none';
-      });
-      if (typeof lucide !== 'undefined') lucide.createIcons();
-    }, 4000);
-  } else {
-    playIcon.setAttribute('data-lucide', 'volume-2');
-    waveBars.forEach(bar => {
-      bar.classList.remove('active');
-      bar.style.height = '4px';
-      bar.style.animation = 'none';
-    });
-  }
-  
-  if (typeof lucide !== 'undefined') {
-    lucide.createIcons();
-  }
-}
 
 // User types a message
 async function sendChatMessage() {
@@ -446,497 +392,470 @@ function toggleChatMic() {
 
 
 // ==========================================
-// 4. STORY MODE INTERACTIVE GENERATOR & READER
+// 4. STUDENT STORY MODE (JSON & LOCAL IMAGES)
 // ==========================================
 
-let currentStudentStory = null;
-let studentSlideIndex = 0;
-let isStorySpeaking = false;
-let isStudentFullStoryMode = false;
+let studentStoryboardData = null;
+let studentSubjectsMap = {};
+let currentStudentSubject = '';
+let currentStudentChapter = null;
+let currentStudentSlideIndex = 0;
+let isStudentStorySpeaking = false;
+let isStudentAudioModeActive = false;
+let studentStoryUtterance = null;
 
-function applyStoryPreset(topicName) {
-  const inputEl = document.getElementById('storyInput');
-  if (inputEl) {
-    inputEl.value = topicName;
-    generateStoryFromInput();
+async function initStudentStoryMode() {
+  if (!studentStoryboardData) {
+    await fetchStudentStoryboard();
+  } else {
+    populateStudentSubjectDropdown();
   }
 }
 
-async function generateStoryFromInput() {
-  const inputEl = document.getElementById('storyInput');
-  const gradeSelect = document.getElementById('gradeSelect');
-  const selectedGrade = gradeSelect ? parseInt(gradeSelect.value) : 6;
-  const inputVal = inputEl ? inputEl.value.trim() : '';
-  if (!inputVal) return;
+async function fetchStudentStoryboard() {
+  const loadingEl = document.getElementById('studentStoryLoading');
+  const placeholderEl = document.getElementById('studentStoryPlaceholder');
+  const contentEl = document.getElementById('studentStoryContent');
+  const placeholderTitle = document.getElementById('studentPlaceholderTitle');
+  const placeholderText = document.getElementById('studentPlaceholderText');
 
-  const generateBtn = document.getElementById('storyGenerateBtn');
-  const btnText = document.getElementById('storyGenerateBtnText');
-  const placeholder = document.getElementById('storyPlaceholder');
-  const loadingState = document.getElementById('storyLoadingState');
-  const loadingTitle = document.getElementById('storyLoadingTitle');
-  const loadingSubtext = document.getElementById('storyLoadingSubtext');
-  const contentBox = document.getElementById('storyContentBox');
-
-  // Stop any active narration
-  if (window.speechSynthesis) window.speechSynthesis.cancel();
-  isStorySpeaking = false;
-  updateStoryAudioButtonState();
-
-  // Show loading state
-  if (generateBtn) generateBtn.disabled = true;
-  if (btnText) btnText.textContent = 'Generating Story with AI...';
-  if (inputEl) inputEl.disabled = true;
-
-  if (placeholder) placeholder.style.display = 'none';
-  if (contentBox) contentBox.classList.remove('active');
-  if (loadingState) loadingState.style.display = 'block';
-  if (loadingTitle) loadingTitle.textContent = `Weaving the story of "${inputVal}"...`;
-  if (loadingSubtext) loadingSubtext.textContent = 'Step 1/2: Crafting character dialogues & step-by-step storyline...';
-
-  const loadingTimer = setTimeout(() => {
-    if (loadingSubtext && loadingState.style.display !== 'none') {
-      loadingSubtext.textContent = 'Step 2/2: Generating vibrant AI illustrations for every chapter...';
-    }
-  }, 2500);
-
-  let storyPayload = null;
+  if (loadingEl) loadingEl.style.display = 'block';
+  if (placeholderEl) placeholderEl.style.display = 'none';
+  if (contentEl) contentEl.style.display = 'none';
 
   try {
-    // 1. Call primary storyboard endpoint
-    const response = await fetch(`${BACKEND_BASE_URL}/api/story/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        topic: inputVal, 
-        grade: `${selectedGrade}th Standard`,
-        slide_count: 5 
-      })
-    });
+    const res = await fetch(`${BACKEND_BASE_URL}/api/story/`);
+    if (!res.ok) {
+      throw new Error(`Failed to load storyboard (HTTP ${res.status})`);
+    }
+    const data = await res.json();
+    studentStoryboardData = data;
+    parseStudentStoryboard(data);
+    populateStudentSubjectDropdown();
 
-    clearTimeout(loadingTimer);
-    const data = await response.json();
-
-    if (response.ok && data.success && data.story && Array.isArray(data.story.slides) && data.story.slides.length > 0) {
-      storyPayload = data.story;
-    } else {
-      throw new Error(data.message || "Failed to generate storyboard structure");
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (placeholderEl) {
+      placeholderEl.style.display = 'flex';
+      if (placeholderTitle) placeholderTitle.textContent = "Please select a subject.";
+      if (placeholderText) placeholderText.textContent = "Select a subject and chapter from the dropdowns above to begin reading the illustrated story.";
     }
   } catch (err) {
-    clearTimeout(loadingTimer);
-    console.warn("Primary story generation failed, falling back to /api/ai/story:", err);
-    
-    // Fallback: Call /api/ai/story
-    try {
-      const fbResponse = await fetch(`${BACKEND_BASE_URL}/api/ai/story`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: inputVal, gradeLevel: String(selectedGrade) })
-      });
-      const fbData = await fbResponse.json();
-      
-      let rawStory = (fbData && (fbData.story || fbData.response)) ? (fbData.story || fbData.response) : "";
-      if (!rawStory) {
-        rawStory = await callAiApi(`Write an engaging story explaining "${inputVal}" for a Grade ${selectedGrade} student. Separate 4 paragraphs with "---".`);
-      }
+    console.error("Error loading storyboard:", err);
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (placeholderEl) {
+      placeholderEl.style.display = 'flex';
+      if (placeholderTitle) placeholderTitle.textContent = "Unable to load Story Mode content.";
+      if (placeholderText) placeholderText.innerHTML = `${escapeHtml(err.message || 'Please try again.')}<br><br><button onclick="fetchStudentStoryboard()" class="btn-3d btn-3d-purple" style="font-size:0.85rem; padding: 6px 16px;">Try Again</button>`;
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+  }
+}
 
-      // Convert text paragraphs into slides structure
-      let paras = typeof rawStory === 'string' ? rawStory.split('---').map(p => p.trim()).filter(p => p.length > 0) : [];
-      if (paras.length < 2 && typeof rawStory === 'string') {
-        paras = rawStory.split('\n\n').map(p => p.trim()).filter(p => p.length > 0);
-      }
-      if (paras.length === 0) {
-        paras = [`Welcome to the amazing world of ${inputVal}! Characters explore how it works step-by-step.`];
-      }
+function parseStudentStoryboard(data) {
+  // Standard subject baseline
+  studentSubjectsMap = {
+    'Tamil': [],
+    'English': [],
+    'Maths': [],
+    'Science': [],
+    'Social': []
+  };
 
-      const generatedSlides = paras.map((pText, idx) => {
-        const encodedPrompt = encodeURIComponent(`Charming children's book illustration for ${inputVal} step ${idx + 1}, cute friendly characters, colorful digital art`);
-        const seed = Math.floor(Math.random() * 900000) + 100000;
-        return {
-          slide_number: idx + 1,
-          concept: `Chapter ${idx + 1}: Exploring ${inputVal}`,
-          subtitle: pText,
-          image_url: `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=576&seed=${seed}&nologo=true`,
-          image_status: 'ready'
-        };
-      });
+  if (!data) return;
 
-      storyPayload = {
-        title: (fbData && fbData.title) ? fbData.title : `The Adventure of ${inputVal}`,
-        topic: inputVal,
-        grade: `Grade ${selectedGrade}`,
-        characters: ["Nature Friends", "Story Characters"],
-        learning_objective: `Understand the concepts of ${inputVal} through a friendly story`,
-        key_takeaway: `Key takeaways and core principles of ${inputVal}.`,
-        slides: generatedSlides,
-        full_story: paras.join("\n\n---\n\n")
+  // Pattern 1: JSON has "subjects" object
+  if (data.subjects && typeof data.subjects === 'object') {
+    Object.keys(data.subjects).forEach(subKey => {
+      const formattedKey = subKey.charAt(0).toUpperCase() + subKey.slice(1).toLowerCase();
+      const subObj = data.subjects[subKey];
+      const chapters = Array.isArray(subObj.chapters) ? subObj.chapters : (Array.isArray(subObj) ? subObj : []);
+      studentSubjectsMap[formattedKey] = chapters.map(ch => normalizeChapter(ch, formattedKey));
+    });
+  }
+  // Pattern 2: Single chapter object with chapter_title, subject, and scenes (the exact user-provided file)
+  else if (data.chapter_title && (data.scenes || data.slides)) {
+    const rawSub = data.subject || 'Science';
+    const formattedSub = rawSub.charAt(0).toUpperCase() + rawSub.slice(1).toLowerCase();
+    const ch = normalizeChapter(data, formattedSub);
+    if (!studentSubjectsMap[formattedSub]) {
+      studentSubjectsMap[formattedSub] = [];
+    }
+    studentSubjectsMap[formattedSub].push(ch);
+  }
+  // Pattern 3: Array of chapters at root
+  else if (Array.isArray(data.chapters)) {
+    data.chapters.forEach(ch => {
+      const rawSub = ch.subject || 'General';
+      const formattedSub = rawSub.charAt(0).toUpperCase() + rawSub.slice(1).toLowerCase();
+      if (!studentSubjectsMap[formattedSub]) studentSubjectsMap[formattedSub] = [];
+      studentSubjectsMap[formattedSub].push(normalizeChapter(ch, formattedSub));
+    });
+  }
+}
+
+function normalizeChapter(rawCh, defaultSubject) {
+  const scenes = rawCh.scenes || rawCh.slides || [];
+  return {
+    chapter_number: rawCh.chapter_number || rawCh.chapter_id || 1,
+    chapter_title: rawCh.chapter_title || rawCh.title || 'Curriculum Chapter',
+    subject: rawCh.subject || defaultSubject,
+    class: rawCh.class || rawCh.grade || 10,
+    slides: scenes.map((s, idx) => {
+      // Determine image path from JSON or structured fallback
+      let imgPath = s.image || s.image_url || '';
+      if (!imgPath) {
+        const subSlug = (rawCh.subject || defaultSubject).toLowerCase();
+        imgPath = `storymode/images/${subSlug}/nervous_system/slide${idx + 1}.jpg`;
+      }
+      return {
+        slide_number: s.scene_id || s.slide_number || (idx + 1),
+        title: s.title || s.concept || `Scene ${idx + 1}`,
+        concept: s.concept || s.title || '',
+        narration: s.narration || s.subtitle || '',
+        duration_seconds: s.duration_seconds || 10,
+        image: imgPath
       };
-    } catch (fallbackErr) {
-      console.error("All story generation attempts failed:", fallbackErr);
-      if (loadingState) loadingState.style.display = 'none';
-      if (placeholder) {
-        placeholder.style.display = 'flex';
-        placeholder.innerHTML = `
-          <div style="background: #fef2f2; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
-            <i data-lucide="alert-circle" style="font-size: 2rem; color: #ef4444;"></i>
-          </div>
-          <h4 style="color: #dc2626; margin: 0;">Could not generate story</h4>
-          <p style="color: #64748b; font-size: 0.88rem;">${escapeHtml(fallbackErr.message || 'Please check your connection and try again.')}</p>
-          <button class="btn-3d btn-3d-purple" onclick="generateStoryFromInput()" style="margin-top: 10px; padding: 6px 16px; font-size: 0.85rem;">Try Again</button>
-        `;
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-      }
-      if (generateBtn) generateBtn.disabled = false;
-      if (btnText) btnText.textContent = 'Generate Illustrated Story';
-      if (inputEl) inputEl.disabled = false;
-      return;
-    }
-  }
-
-  // Restore button state
-  if (generateBtn) generateBtn.disabled = false;
-  if (btnText) btnText.textContent = 'Generate Illustrated Story';
-  if (inputEl) inputEl.disabled = false;
-
-  // Render Story
-  currentStudentStory = storyPayload;
-  studentSlideIndex = 0;
-  isStudentFullStoryMode = false;
-
-  if (loadingState) loadingState.style.display = 'none';
-  if (contentBox) contentBox.classList.add('active');
-
-  renderStudentStorySlide(0);
-  preloadStudentStoryImages(currentStudentStory.slides);
+    })
+  };
 }
 
-function preloadStudentStoryImages(slides) {
-  if (!Array.isArray(slides)) return;
-  slides.forEach((s, idx) => {
-    if (s.image_url) {
-      setTimeout(() => {
-        const preloader = new Image();
-        preloader.src = s.image_url;
-      }, idx * 500);
-    }
+function populateStudentSubjectDropdown() {
+  const subjectSelect = document.getElementById('storySubjectSelect');
+  if (!subjectSelect) return;
+
+  const subjects = Object.keys(studentSubjectsMap);
+  let optionsHtml = '<option value="">Select Subject</option>';
+  subjects.forEach(sub => {
+    const count = (studentSubjectsMap[sub] && studentSubjectsMap[sub].length) || 0;
+    optionsHtml += `<option value="${escapeHtml(sub)}">${escapeHtml(sub)}${count > 0 ? ` (${count})` : ''}</option>`;
   });
+  subjectSelect.innerHTML = optionsHtml;
+
+  // If a subject is already selected, retain it; otherwise select Science by default if it has chapters
+  if (currentStudentSubject && studentSubjectsMap[currentStudentSubject]) {
+    subjectSelect.value = currentStudentSubject;
+    populateStudentChapterDropdown(currentStudentSubject);
+  } else if (studentSubjectsMap['Science'] && studentSubjectsMap['Science'].length > 0) {
+    subjectSelect.value = 'Science';
+    onStudentSubjectChanged('Science');
+  } else {
+    populateStudentChapterDropdown('');
+  }
 }
 
-function formatStoryText(rawText) {
-  if (!rawText) return '';
-  let escaped = escapeHtml(rawText);
-  // Highlight dialogue quotes cleanly in bold purple without corrupting attributes
-  escaped = escaped.replace(/&quot;([^&]*?)&quot;/g, '<strong style="color: #6d28d9; font-weight: 700;">&ldquo;$1&rdquo;</strong>');
-  // Highlight markdown bold **...**
-  escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  return escaped;
+function onStudentSubjectChanged(selectedSub) {
+  currentStudentSubject = selectedSub;
+  stopStudentStorySpeech();
+  populateStudentChapterDropdown(selectedSub);
+
+  const placeholderEl = document.getElementById('studentStoryPlaceholder');
+  const contentEl = document.getElementById('studentStoryContent');
+  const placeholderTitle = document.getElementById('studentPlaceholderTitle');
+  const placeholderText = document.getElementById('studentPlaceholderText');
+
+  if (!selectedSub) {
+    if (contentEl) contentEl.style.display = 'none';
+    if (placeholderEl) {
+      placeholderEl.style.display = 'flex';
+      if (placeholderTitle) placeholderTitle.textContent = "Please select a subject.";
+      if (placeholderText) placeholderText.textContent = "Select a subject and chapter from the dropdowns above to begin reading the illustrated story.";
+    }
+    return;
+  }
+
+  const chapters = studentSubjectsMap[selectedSub] || [];
+  if (chapters.length === 0) {
+    if (contentEl) contentEl.style.display = 'none';
+    if (placeholderEl) {
+      placeholderEl.style.display = 'flex';
+      if (placeholderTitle) placeholderTitle.textContent = `No chapters available for ${selectedSub}.`;
+      if (placeholderText) placeholderText.textContent = `Please select another subject (such as Science) to explore available chapters.`;
+    }
+  } else {
+    // Automatically select the first chapter
+    const chapterSelect = document.getElementById('storyChapterSelect');
+    if (chapterSelect) {
+      chapterSelect.value = "0";
+      onStudentChapterChanged("0");
+    }
+  }
 }
 
-function renderStudentStorySlide(index) {
-  if (!currentStudentStory || !currentStudentStory.slides || currentStudentStory.slides.length === 0) return;
+function populateStudentChapterDropdown(subject) {
+  const chapterSelect = document.getElementById('storyChapterSelect');
+  if (!chapterSelect) return;
 
-  const slides = currentStudentStory.slides;
-  const totalSlides = slides.length;
-  if (index < 0) index = 0;
-  if (index >= totalSlides) index = totalSlides - 1;
-  studentSlideIndex = index;
+  if (!subject || !studentSubjectsMap[subject] || studentSubjectsMap[subject].length === 0) {
+    chapterSelect.innerHTML = '<option value="">No chapters available</option>';
+    chapterSelect.disabled = true;
+    return;
+  }
 
-  const slide = slides[studentSlideIndex];
+  const chapters = studentSubjectsMap[subject];
+  let optionsHtml = '<option value="">Select Chapter</option>';
+  chapters.forEach((ch, idx) => {
+    optionsHtml += `<option value="${idx}">${escapeHtml(ch.chapter_title)}</option>`;
+  });
+  chapterSelect.innerHTML = optionsHtml;
+  chapterSelect.disabled = false;
+}
 
-  // Title & Badges
-  const activeTitle = document.getElementById('activeStoryTitle');
-  const badgeGrade = document.getElementById('storyBadgeGrade');
-  const badgeChapter = document.getElementById('storyBadgeChapter');
-  const badgeCharacters = document.getElementById('storyBadgeCharacters');
+function onStudentChapterChanged(chapterIdxVal) {
+  stopStudentStorySpeech();
+  const placeholderEl = document.getElementById('studentStoryPlaceholder');
+  const contentEl = document.getElementById('studentStoryContent');
+  const placeholderTitle = document.getElementById('studentPlaceholderTitle');
 
-  if (activeTitle) activeTitle.textContent = currentStudentStory.title || `The Story of ${currentStudentStory.topic}`;
-  if (badgeGrade) badgeGrade.innerHTML = `<i data-lucide="graduation-cap" style="width: 12px; height: 12px;"></i> ${escapeHtml(currentStudentStory.grade || 'Grade 6')}`;
-  if (badgeChapter) badgeChapter.textContent = `Chapter ${studentSlideIndex + 1} of ${totalSlides}`;
-
-  if (badgeCharacters) {
-    if (Array.isArray(currentStudentStory.characters) && currentStudentStory.characters.length > 0) {
-      badgeCharacters.style.display = 'inline-flex';
-      badgeCharacters.innerHTML = `<i data-lucide="users" style="width: 12px; height: 12px;"></i> ${escapeHtml(currentStudentStory.characters.slice(0, 3).join(', '))}`;
-    } else {
-      badgeCharacters.style.display = 'none';
+  if (chapterIdxVal === '' || chapterIdxVal === null || isNaN(chapterIdxVal)) {
+    currentStudentChapter = null;
+    if (contentEl) contentEl.style.display = 'none';
+    if (placeholderEl) {
+      placeholderEl.style.display = 'flex';
+      if (placeholderTitle) placeholderTitle.textContent = "Please select a chapter.";
     }
+    return;
   }
 
-  // Chapter Header & Text
-  const chapterHeader = document.getElementById('studentChapterHeader');
-  const textEl = document.getElementById('studentSlideStoryText');
-  const takeawayBox = document.getElementById('studentTakeawayBox');
-  const takeawayText = document.getElementById('studentTakeawayText');
-
-  if (chapterHeader) {
-    const conceptName = slide.concept || `Chapter ${studentSlideIndex + 1}`;
-    chapterHeader.innerHTML = `<i data-lucide="sparkle" style="width: 14px; height: 14px;"></i> ${escapeHtml(conceptName)}`;
-  }
-
-  if (textEl) {
-    textEl.innerHTML = formatStoryText(slide.subtitle || '');
-  }
-
-  // Educational Takeaway (Show on the last slide if available)
-  if (takeawayBox && takeawayText) {
-    const isLastSlide = studentSlideIndex === totalSlides - 1;
-    if (isLastSlide && currentStudentStory.key_takeaway) {
-      takeawayBox.style.display = 'block';
-      let cleanTakeaway = escapeHtml(currentStudentStory.key_takeaway);
-      cleanTakeaway = cleanTakeaway.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      takeawayText.innerHTML = cleanTakeaway;
-    } else {
-      takeawayBox.style.display = 'none';
+  const chapters = studentSubjectsMap[currentStudentSubject] || [];
+  const idx = parseInt(chapterIdxVal, 10);
+  if (!chapters[idx]) {
+    if (contentEl) contentEl.style.display = 'none';
+    if (placeholderEl) {
+      placeholderEl.style.display = 'flex';
+      if (placeholderTitle) placeholderTitle.textContent = "Chapter not found.";
     }
+    return;
   }
 
-  // Image Frame Handling
+  currentStudentChapter = chapters[idx];
+  currentStudentSlideIndex = 0;
+
+  if (placeholderEl) placeholderEl.style.display = 'none';
+  if (contentEl) contentEl.style.display = 'block';
+
+  renderStudentSlide(0);
+}
+
+function renderStudentSlide(idx) {
+  if (!currentStudentChapter || !currentStudentChapter.slides || currentStudentChapter.slides.length === 0) {
+    return;
+  }
+
+  const slides = currentStudentChapter.slides;
+  const total = slides.length;
+  if (idx < 0) idx = 0;
+  if (idx >= total) idx = total - 1;
+  currentStudentSlideIndex = idx;
+
+  const slide = slides[currentStudentSlideIndex];
+
+  // Stop previous speech
+  const wasNarrating = isStudentStorySpeaking;
+  stopStudentStorySpeech();
+
+  // Badges & Headers
+  const titleEl = document.getElementById('studentActiveChapterTitle');
+  const subjectBadge = document.getElementById('studentBadgeSubject');
+  const countBadge = document.getElementById('studentBadgeSlideCount');
+  const sceneBadge = document.getElementById('studentSlideNumberBadge');
+  const conceptTitle = document.getElementById('studentSlideConceptTitle');
+  const narrationEl = document.getElementById('studentSlideNarrationText');
+  const counterEl = document.getElementById('studentSlideCounter');
+
+  if (titleEl) titleEl.textContent = currentStudentChapter.chapter_title;
+  if (subjectBadge) subjectBadge.innerHTML = `<i data-lucide="book" style="width: 12px; height: 12px;"></i> ${escapeHtml(currentStudentChapter.subject)}`;
+  if (countBadge) countBadge.textContent = `Slide ${currentStudentSlideIndex + 1} of ${total}`;
+  if (sceneBadge) sceneBadge.textContent = `SCENE ${slide.slide_number || (currentStudentSlideIndex + 1)}`;
+  if (conceptTitle) conceptTitle.textContent = slide.title || slide.concept || `Scene ${currentStudentSlideIndex + 1}`;
+  if (counterEl) counterEl.textContent = `${currentStudentSlideIndex + 1} / ${total}`;
+
+  // Exact narration text strictly from storyboard.json (no modifications)
+  if (narrationEl) {
+    narrationEl.textContent = slide.narration || '';
+  }
+
+  // Cinematic 16:9 Image Display
   const imgEl = document.getElementById('studentSlideImg');
-  const placeholderEl = document.getElementById('studentImgPlaceholder');
+  const errEl = document.getElementById('studentSlideImgError');
 
-  if (imgEl && placeholderEl) {
-    if (slide.image_url && slide.image_status !== 'failed') {
-      imgEl.style.display = 'none';
-      placeholderEl.style.display = 'block';
-      placeholderEl.innerHTML = `
-        <span class="loading-spinner" style="width: 24px; height: 24px; margin-bottom: 6px;"></span>
-        <p style="margin: 0; font-size: 0.82rem; color: #94a3b8;">Loading chapter illustration...</p>
-      `;
+  if (imgEl && errEl) {
+    errEl.style.display = 'none';
+    imgEl.style.display = 'none';
 
+    if (slide.image) {
       imgEl.onload = () => {
         imgEl.style.display = 'block';
-        placeholderEl.style.display = 'none';
+        errEl.style.display = 'none';
       };
       imgEl.onerror = () => {
-        handleStudentImageError(imgEl);
+        imgEl.style.display = 'none';
+        errEl.style.display = 'block';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
       };
-      imgEl.src = slide.image_url;
+
+      let imgSrc = slide.image;
+      if (!imgSrc.startsWith('http://') && !imgSrc.startsWith('https://') && !imgSrc.startsWith('/')) {
+        imgSrc = '/' + imgSrc;
+      }
+      imgEl.src = imgSrc;
     } else {
-      imgEl.style.display = 'none';
-      placeholderEl.style.display = 'block';
-      placeholderEl.innerHTML = `
-        <i data-lucide="image-off" style="width: 32px; height: 32px; color: #f87171; margin-bottom: 6px;"></i>
-        <p style="margin: 0; font-size: 0.82rem; color: #94a3b8;">Illustration will appear shortly</p>
-      `;
+      errEl.style.display = 'block';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
     }
   }
 
   // Navigation Buttons
-  const btnPrev = document.getElementById('btnPrevSlide');
-  const btnNext = document.getElementById('btnNextSlide');
+  const btnPrev = document.getElementById('btnStudentPrev');
+  const btnNext = document.getElementById('btnStudentNext');
 
   if (btnPrev) {
-    btnPrev.disabled = studentSlideIndex === 0;
-    btnPrev.style.opacity = studentSlideIndex === 0 ? '0.4' : '1';
-    btnPrev.style.cursor = studentSlideIndex === 0 ? 'not-allowed' : 'pointer';
+    btnPrev.disabled = currentStudentSlideIndex === 0;
+    btnPrev.style.opacity = currentStudentSlideIndex === 0 ? '0.4' : '1';
+    btnPrev.style.cursor = currentStudentSlideIndex === 0 ? 'not-allowed' : 'pointer';
   }
 
   if (btnNext) {
-    const isLast = studentSlideIndex === totalSlides - 1;
-    btnNext.innerHTML = isLast ? 'Finished 🌟' : 'Next <i data-lucide="chevron-right"></i>';
+    const isLast = currentStudentSlideIndex === total - 1;
+    btnNext.disabled = isLast;
+    btnNext.style.opacity = isLast ? '0.4' : '1';
+    btnNext.style.cursor = isLast ? 'not-allowed' : 'pointer';
   }
 
-  // Page Dots
+  // Dots
   const dotsContainer = document.getElementById('studentStoryDots');
   if (dotsContainer) {
     let dotsHtml = '';
-    for (let i = 0; i < totalSlides; i++) {
-      const isActive = i === studentSlideIndex;
+    for (let i = 0; i < total; i++) {
+      const isActive = i === currentStudentSlideIndex;
       dotsHtml += `
-        <button type="button" class="story-nav-dot ${isActive ? 'active' : ''}" 
+        <button type="button" 
                 onclick="goToStudentSlide(${i})" 
-                title="Go to Chapter ${i + 1}">
+                title="Go to Slide ${i + 1}"
+                style="width: ${isActive ? '24px' : '9px'}; height: 9px; border-radius: 5px; background: ${isActive ? '#8b5cf6' : '#cbd5e1'}; border: none; cursor: pointer; transition: all 0.3s ease;">
         </button>
       `;
     }
     dotsContainer.innerHTML = dotsHtml;
   }
 
-  // Stop narration if it was playing for the previous slide
-  if (window.speechSynthesis && isStorySpeaking) {
-    window.speechSynthesis.cancel();
-    isStorySpeaking = false;
-    updateStoryAudioButtonState();
+  // Auto-play narration if user had narration active
+  if (wasNarrating && isStudentAudioModeActive) {
+    startStudentStorySpeech(slide.narration);
   }
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-function nextStudentSlide() {
-  if (!currentStudentStory || !currentStudentStory.slides) return;
-  if (studentSlideIndex < currentStudentStory.slides.length - 1) {
-    renderStudentStorySlide(studentSlideIndex + 1);
-  } else {
-    // Reached the end! Prompt to explore full story or quiz
-    showToast("🎉 Great job finishing the story! Explore the quiz or read again.");
+function prevStudentSlide() {
+  if (currentStudentSlideIndex > 0) {
+    renderStudentSlide(currentStudentSlideIndex - 1);
   }
 }
 
-function prevStudentSlide() {
-  if (!currentStudentStory || !currentStudentStory.slides) return;
-  if (studentSlideIndex > 0) {
-    renderStudentStorySlide(studentSlideIndex - 1);
+function nextStudentSlide() {
+  if (currentStudentChapter && currentStudentSlideIndex < currentStudentChapter.slides.length - 1) {
+    renderStudentSlide(currentStudentSlideIndex + 1);
   }
 }
 
 function goToStudentSlide(index) {
-  renderStudentStorySlide(index);
+  renderStudentSlide(index);
 }
 
-function handleStudentImageError(imgEl) {
-  if (!imgEl) return;
-  const slide = (currentStudentStory && currentStudentStory.slides) ? currentStudentStory.slides[studentSlideIndex] : null;
-  
-  // If Pollinations failed/timed out, try the high-quality curated educational fallback
-  if (slide && slide.fallback_url && imgEl.src !== slide.fallback_url) {
-    imgEl.src = slide.fallback_url;
-    imgEl.style.display = 'block';
-    const placeholderEl = document.getElementById('studentImgPlaceholder');
-    if (placeholderEl) placeholderEl.style.display = 'none';
-    return;
+function handleStudentImageLoadError(imgEl) {
+  if (imgEl) imgEl.style.display = 'none';
+  const errEl = document.getElementById('studentSlideImgError');
+  if (errEl) errEl.style.display = 'block';
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+// ==========================================
+// TEXT-TO-SPEECH FOR STUDENT STORY MODE
+// ==========================================
+
+function stopStudentStorySpeech() {
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+  isStudentStorySpeaking = false;
+  studentStoryUtterance = null;
+  updateStudentAudioButtonState();
+}
+
+function startStudentStorySpeech(textToRead) {
+  if (!('speechSynthesis' in window) || !textToRead) return;
+
+  stopStudentStorySpeech();
+
+  studentStoryUtterance = new SpeechSynthesisUtterance(textToRead);
+  studentStoryUtterance.rate = 0.92;
+  studentStoryUtterance.pitch = 1.05;
+
+  const voices = window.speechSynthesis.getVoices();
+  const englishVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Zira'))) || voices.find(v => v.lang.startsWith('en'));
+  if (englishVoice) {
+    studentStoryUtterance.voice = englishVoice;
   }
 
-  imgEl.style.display = 'none';
-  const placeholderEl = document.getElementById('studentImgPlaceholder');
-  if (placeholderEl) {
-    placeholderEl.style.display = 'block';
-    placeholderEl.innerHTML = `
-      <i data-lucide="book-open" style="width: 36px; height: 36px; color: #a78bfa; margin-bottom: 6px;"></i>
-      <p style="margin: 0 0 8px 0; font-size: 0.85rem; color: #cbd5e1;">Story Chapter Illustration</p>
-      <button type="button" onclick="retryStudentImage()" class="btn-3d btn-3d-purple" style="font-size: 0.75rem; padding: 4px 10px; display: inline-flex; align-items: center; gap: 4px;">
-        <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Retry Image
-      </button>
-    `;
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-  }
+  studentStoryUtterance.onstart = () => {
+    isStudentStorySpeaking = true;
+    updateStudentAudioButtonState();
+  };
+
+  studentStoryUtterance.onend = () => {
+    isStudentStorySpeaking = false;
+    updateStudentAudioButtonState();
+  };
+
+  studentStoryUtterance.onerror = () => {
+    isStudentStorySpeaking = false;
+    updateStudentAudioButtonState();
+  };
+
+  window.speechSynthesis.speak(studentStoryUtterance);
 }
 
-function retryStudentImage() {
-  if (!currentStudentStory || !currentStudentStory.slides) return;
-  const slide = currentStudentStory.slides[studentSlideIndex];
-  if (!slide) return;
-  const newSeed = Math.floor(Math.random() * 900000) + 100000;
-  const cleanTopic = encodeURIComponent(currentStudentStory.topic || 'science');
-  slide.image_url = `https://image.pollinations.ai/prompt/Charming%20colorful%20storybook%20illustration%20of%20${cleanTopic}%20step%20${studentSlideIndex + 1}?width=800&height=450&seed=${newSeed}&nologo=true`;
-  renderStudentStorySlide(studentSlideIndex);
-}
-
-function toggleStorySpeech() {
+function toggleStudentStorySpeech() {
   if (!('speechSynthesis' in window)) {
     alert("Speech Synthesis is not supported in this browser.");
     return;
   }
 
-  if (isStorySpeaking) {
-    window.speechSynthesis.cancel();
-    isStorySpeaking = false;
-    updateStoryAudioButtonState();
+  if (isStudentStorySpeaking) {
+    isStudentAudioModeActive = false;
+    stopStudentStorySpeech();
     return;
   }
 
-  if (!currentStudentStory || !currentStudentStory.slides) return;
+  if (!currentStudentChapter || !currentStudentChapter.slides) return;
+  const slide = currentStudentChapter.slides[currentStudentSlideIndex];
+  if (!slide || !slide.narration) return;
 
-  const currentSlide = currentStudentStory.slides[studentSlideIndex];
-  if (!currentSlide || !currentSlide.subtitle) return;
-
-  const textToRead = currentSlide.subtitle.replace(/[*#]/g, '');
-  const utterance = new SpeechSynthesisUtterance(textToRead);
-  utterance.rate = 0.92; // slightly slower, clear storytelling pace
-  utterance.pitch = 1.05; // warm, engaging narrator tone
-
-  utterance.onstart = () => {
-    isStorySpeaking = true;
-    updateStoryAudioButtonState();
-  };
-
-  utterance.onend = () => {
-    isStorySpeaking = false;
-    updateStoryAudioButtonState();
-  };
-
-  utterance.onerror = () => {
-    isStorySpeaking = false;
-    updateStoryAudioButtonState();
-  };
-
-  window.speechSynthesis.cancel(); // cancel any ongoing speech
-  window.speechSynthesis.speak(utterance);
+  isStudentAudioModeActive = true;
+  startStudentStorySpeech(slide.narration);
 }
 
-function updateStoryAudioButtonState() {
-  const btn = document.getElementById('btnStoryReadAloud');
-  const icon = document.getElementById('storyAudioIcon');
-  const text = document.getElementById('storyAudioText');
+function updateStudentAudioButtonState() {
+  const btn = document.getElementById('btnStudentAudio');
+  const icon = document.getElementById('studentAudioIcon');
+  const text = document.getElementById('studentAudioText');
   if (!btn) return;
 
-  if (isStorySpeaking) {
+  if (isStudentStorySpeaking) {
     btn.classList.add('active-audio');
+    btn.style.backgroundColor = '#8b5cf6';
+    btn.style.borderColor = '#7c3aed';
+    btn.style.color = '#ffffff';
     if (icon) icon.setAttribute('data-lucide', 'square');
-    if (text) text.textContent = 'Stop';
+    if (text) text.textContent = 'Stop Narration';
   } else {
     btn.classList.remove('active-audio');
+    btn.style.backgroundColor = '';
+    btn.style.borderColor = '';
+    btn.style.color = '';
     if (icon) icon.setAttribute('data-lucide', 'volume-2');
-    if (text) text.textContent = 'Listen';
+    if (text) text.textContent = 'Play Narration';
   }
-  if (typeof lucide !== 'undefined') lucide.createIcons();
-}
-
-function toggleStudentFullStory() {
-  const slideView = document.getElementById('studentSlideView');
-  const fullContainer = document.getElementById('studentFullStoryContainer');
-  const fullContent = document.getElementById('studentFullStoryContent');
-  const viewText = document.getElementById('storyViewText');
-  const viewIcon = document.getElementById('storyViewIcon');
-
-  if (!slideView || !fullContainer || !currentStudentStory) return;
-
-  isStudentFullStoryMode = !isStudentFullStoryMode;
-
-  if (isStudentFullStoryMode) {
-    slideView.style.display = 'none';
-    fullContainer.style.display = 'block';
-    if (viewText) viewText.textContent = 'Slide View';
-    if (viewIcon) viewIcon.setAttribute('data-lucide', 'layers');
-
-    // Populate full story chapters
-    let html = '';
-    const slides = currentStudentStory.slides || [];
-    slides.forEach((s, idx) => {
-      let formatted = formatStoryText(s.subtitle || '');
-
-      html += `
-        <div class="full-story-chapter-item">
-          <div style="font-size: 0.82rem; font-weight: 800; text-transform: uppercase; color: #8b5cf6; margin-bottom: 8px;">
-            ${escapeHtml(s.concept || `Chapter ${idx + 1}`)}
-          </div>
-          ${s.image_url ? `
-            <img src="${escapeHtml(s.image_url)}" alt="Chapter ${idx + 1} Illustration" onerror="this.style.display='none';" />
-          ` : ''}
-          <p style="font-size: 1.02rem; line-height: 1.65; color: #1e293b; margin: 0;">
-            ${formatted}
-          </p>
-        </div>
-      `;
-    });
-
-    if (currentStudentStory.key_takeaway) {
-      let cleanT = escapeHtml(currentStudentStory.key_takeaway).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      html += `
-        <div class="story-takeaway-card" style="margin-top: 10px;">
-          <h5><i data-lucide="lightbulb" style="width: 15px; height: 15px;"></i> Science Takeaway:</h5>
-          <p>${cleanT}</p>
-        </div>
-      `;
-    }
-
-    fullContent.innerHTML = html;
-  } else {
-    slideView.style.display = 'block';
-    fullContainer.style.display = 'none';
-    if (viewText) viewText.textContent = 'Full Story';
-    if (viewIcon) viewIcon.setAttribute('data-lucide', 'book');
-    renderStudentStorySlide(studentSlideIndex);
-  }
-
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -1970,7 +1889,6 @@ function switchTab(tabName) {
     'chat': 'AI Chat Tutor',
     'story': 'Illustrated Story Mode',
     'voice': 'Voice Copilot Session',
-    'homework': 'Homework Scanner & Helper',
     'quiz': 'AI Quiz Generator',
     'progress': 'Detailed Learning Progress',
     'tasks': 'My Assigned Tasks'
@@ -1980,6 +1898,9 @@ function switchTab(tabName) {
 
   if (tabName === 'tasks') {
     loadStudentTasks();
+  }
+  if (tabName === 'story') {
+    initStudentStoryMode();
   }
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -2012,7 +1933,7 @@ function switchTeacherTab(tabName) {
     'view-students': 'Registered Students & Progress',
     'assign-tasks': 'Assign Homework Task',
     'review-work': 'Review Student Submissions',
-    'ai-story': 'AI Story Creation'
+    'ai-story': 'Classroom Video Lessons'
   };
   const titleElem = document.getElementById('teacher-header-title');
   if (titleElem) titleElem.textContent = titleMap[tabName] || 'Teacher Dashboard';
@@ -2021,6 +1942,7 @@ function switchTeacherTab(tabName) {
   if (tabName === 'view-students') loadTeacherStudents();
   if (tabName === 'assign-tasks') loadTeacherStudentsForDropdown();
   if (tabName === 'review-work') loadTeacherReviews();
+  if (tabName === 'ai-story') initTeacherVideoModule();
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -2366,7 +2288,7 @@ async function handleTeacherReviewSubmission(subId) {
     const data = await res.json();
     if (res.ok && data.success) {
       alert("Review and grade saved successfully!");
-      loadTeacherReviews();
+loadTeacherReviews();
     } else {
       alert(data.message || "Failed to save review.");
     }
@@ -2375,459 +2297,448 @@ async function handleTeacherReviewSubmission(subId) {
   }
 }
 
-
 // ==========================================
-// AI STORY CREATION MODULE
+// TEACHER VIDEO LESSONS MODULE
 // ==========================================
-let currentStoryData = null;
-let currentSlideIndex = 0;
 
-async function handleGenerateStory(event) {
-  if (event) event.preventDefault();
-
-  const topicInput = document.getElementById('storyTopicInput');
-  const gradeSelect = document.getElementById('storyGradeSelect');
-  const slidesSelect = document.getElementById('storySlidesSelect');
-  const statusAlert = document.getElementById('storyStatusAlert');
-  const carouselContainer = document.getElementById('storyCarouselContainer');
-  const submitBtn = document.getElementById('generateStoryBtn');
-  const btnText = document.getElementById('generateStoryBtnText');
-
-  const topic = topicInput ? topicInput.value.trim() : '';
-  const grade = gradeSelect ? gradeSelect.value : '6th Standard';
-  const slide_count = slidesSelect ? parseInt(slidesSelect.value) : 5;
-
-  if (!topic) {
-    if (statusAlert) {
-      statusAlert.style.display = 'block';
-      statusAlert.style.backgroundColor = '#fef2f2';
-      statusAlert.style.color = '#dc2626';
-      statusAlert.style.border = '1px solid #fca5a5';
-      statusAlert.innerHTML = '<i data-lucide="alert-circle"></i> Please enter an educational topic (e.g. Evaporation).';
-      if (typeof lucide !== 'undefined') lucide.createIcons();
+const TEACHER_VIDEO_CATALOG = {
+  "6": {
+    name: "Class 6",
+    subjects: {
+      "Science": [
+        { id: "c6_sci_food", title: "Components of Food", file: "components_of_food.mp4" },
+        { id: "c6_sci_materials", title: "Sorting Materials into Groups", file: "sorting_materials.mp4" },
+        { id: "c6_sci_separation", title: "Separation of Substances", file: "separation_of_substances.mp4" },
+        { id: "c6_sci_plants", title: "Getting to Know Plants", file: "getting_to_know_plants.mp4" },
+        { id: "c6_sci_body", title: "Body Movements", file: "body_movements.mp4" },
+        { id: "c6_sci_living", title: "The Living Organisms & Habitats", file: "living_organisms.mp4" },
+        { id: "c6_sci_motion", title: "Motion and Measurement of Distances", file: "motion_and_measurement.mp4" },
+        { id: "c6_sci_light", title: "Light, Shadows and Reflections", file: "light_shadows.mp4" },
+        { id: "c6_sci_electricity", title: "Electricity and Circuits", file: "electricity_circuits.mp4" },
+        { id: "c6_sci_magnets", title: "Fun with Magnets", file: "fun_with_magnets.mp4" }
+      ],
+      "Mathematics": [
+        { id: "c6_math_numbers", title: "Knowing Our Numbers", file: "knowing_numbers.mp4" },
+        { id: "c6_math_whole", title: "Whole Numbers", file: "whole_numbers.mp4" },
+        { id: "c6_math_playing", title: "Playing with Numbers", file: "playing_with_numbers.mp4" },
+        { id: "c6_math_geo", title: "Basic Geometrical Ideas", file: "geometrical_ideas.mp4" },
+        { id: "c6_math_integers", title: "Integers", file: "integers.mp4" },
+        { id: "c6_math_fractions", title: "Fractions and Decimals", file: "fractions_decimals.mp4" },
+        { id: "c6_math_algebra", title: "Introduction to Algebra", file: "algebra_intro.mp4" },
+        { id: "c6_math_ratio", title: "Ratio and Proportion", file: "ratio_proportion.mp4" }
+      ],
+      "Social Science": [
+        { id: "c6_soc_history1", title: "What, Where, How and When?", file: "history_beginnings.mp4" },
+        { id: "c6_soc_hunting", title: "From Hunting-Gathering to Growing Food", file: "early_humans.mp4" },
+        { id: "c6_soc_solar", title: "The Earth in the Solar System", file: "solar_system.mp4" },
+        { id: "c6_soc_globe", title: "Globe: Latitudes and Longitudes", file: "globe_latitudes.mp4" },
+        { id: "c6_soc_diversity", title: "Understanding Diversity", file: "diversity.mp4" }
+      ],
+      "English": [
+        { id: "c6_eng_patrick", title: "Who Did Patrick's Homework?", file: "patricks_homework.mp4" },
+        { id: "c6_eng_dog", title: "How the Dog Found Himself a Master", file: "dog_master.mp4" },
+        { id: "c6_eng_taro", title: "Taro's Reward", file: "taros_reward.mp4" },
+        { id: "c6_eng_kalpana", title: "An Indian-American Woman in Space: Kalpana Chawla", file: "kalpana_chawla.mp4" }
+      ],
+      "Tamil": [
+        { id: "c6_tam_inba", title: "இன்பத்தமிழ் (Inba Tamil)", file: "inba_tamil.mp4" },
+        { id: "c6_tam_kummi", title: "தமிழ்க் கும்மி (Tamil Kummi)", file: "tamil_kummi.mp4" },
+        { id: "c6_tam_valar", title: "வளர்தமிழ் (Valar Tamil)", file: "valar_tamil.mp4" },
+        { id: "c6_tam_kanavu", title: "கனவு பலித்தது (Kanavu Palithathu)", file: "kanavu_palithathu.mp4" }
+      ]
     }
-    return;
-  }
-
-  // Set progressive loading state
-  if (submitBtn) submitBtn.disabled = true;
-  if (btnText) btnText.textContent = 'Generating Story with AI...';
-  if (statusAlert) {
-    statusAlert.style.display = 'block';
-    statusAlert.style.backgroundColor = '#eff6ff';
-    statusAlert.style.color = '#1d4ed8';
-    statusAlert.style.border = '1px solid #93c5fd';
-    statusAlert.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; gap:10px;"><span class="loading-spinner"></span> Step 1/2: Understanding topic & creating educational storyboard...</div>';
-  }
-  if (carouselContainer) carouselContainer.style.display = 'none';
-
-  const statusTimer = setTimeout(() => {
-    if (submitBtn && submitBtn.disabled && statusAlert) {
-      statusAlert.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; gap:10px;"><span class="loading-spinner"></span> Step 2/2: Generating AI educational illustrations in parallel...</div>';
+  },
+  "7": {
+    name: "Class 7",
+    subjects: {
+      "Science": [
+        { id: "c7_sci_nutrition_plants", title: "Nutrition in Plants", file: "nutrition_plants.mp4" },
+        { id: "c7_sci_nutrition_animals", title: "Nutrition in Animals", file: "nutrition_animals.mp4" },
+        { id: "c7_sci_heat", title: "Heat and Temperature", file: "heat_temperature.mp4" },
+        { id: "c7_sci_acids", title: "Acids, Bases and Salts", file: "acids_bases_salts.mp4" },
+        { id: "c7_sci_physical", title: "Physical and Chemical Changes", file: "physical_chemical_changes.mp4" },
+        { id: "c7_sci_respiration", title: "Respiration in Organisms", file: "respiration.mp4" },
+        { id: "c7_sci_motion", title: "Motion and Time", file: "motion_time.mp4" },
+        { id: "c7_sci_light", title: "Light & Optics", file: "light_optics.mp4" }
+      ],
+      "Mathematics": [
+        { id: "c7_math_integers", title: "Integers Operations", file: "integers_ops.mp4" },
+        { id: "c7_math_fractions", title: "Fractions and Decimals", file: "fractions_decimals.mp4" },
+        { id: "c7_math_equations", title: "Simple Equations", file: "simple_equations.mp4" },
+        { id: "c7_math_lines", title: "Lines and Angles", file: "lines_angles.mp4" },
+        { id: "c7_math_triangles", title: "The Triangle and its Properties", file: "triangles.mp4" },
+        { id: "c7_math_comparing", title: "Comparing Quantities", file: "comparing_quantities.mp4" },
+        { id: "c7_math_perimeter", title: "Perimeter and Area", file: "perimeter_area.mp4" }
+      ],
+      "Social Science": [
+        { id: "c7_soc_tracing", title: "Tracing Changes Through A Thousand Years", file: "thousand_years.mp4" },
+        { id: "c7_soc_kings", title: "New Kings and Kingdoms", file: "kings_kingdoms.mp4" },
+        { id: "c7_soc_delhi", title: "The Delhi Sultans", file: "delhi_sultans.mp4" },
+        { id: "c7_soc_mughal", title: "The Mughal Empire", file: "mughal_empire.mp4" },
+        { id: "c7_soc_environment", title: "Environment and Ecosystem", file: "environment.mp4" }
+      ],
+      "English": [
+        { id: "c7_eng_questions", title: "Three Questions", file: "three_questions.mp4" },
+        { id: "c7_eng_chappals", title: "A Gift of Chappals", file: "gift_chappals.mp4" },
+        { id: "c7_eng_gopal", title: "Gopal and the Hilsa Fish", file: "gopal_hilsa.mp4" },
+        { id: "c7_eng_quality", title: "Quality", file: "quality.mp4" }
+      ],
+      "Tamil": [
+        { id: "c7_tam_engal", title: "எங்கள் தமிழ் (Engal Tamil)", file: "engal_tamil.mp4" },
+        { id: "c7_tam_kaadu", title: "காடு (Kaadu)", file: "kaadu.mp4" },
+        { id: "c7_tam_vilangugal", title: "விலங்குகள் உலகம் (Vilangugal Ulagam)", file: "vilangugal_ulagam.mp4" },
+        { id: "c7_tam_kappal", title: "கப்பலோட்டிய தமிழர் (Kappalottiya Thamizhar)", file: "kappalottiya_thamizhar.mp4" }
+      ]
     }
-  }, 2200);
-
-  try {
-    const res = await authFetch('/api/story/generate', {
-      method: 'POST',
-      body: JSON.stringify({
-        topic: topic,
-        grade: grade,
-        slide_count: slide_count
-      })
-    });
-
-    clearTimeout(statusTimer);
-    const data = await res.json();
-
-    if (res.ok && data.success && data.story) {
-      currentStoryData = data.story;
-      currentSlideIndex = 0;
-
-      if (statusAlert) statusAlert.style.display = 'none';
-      renderStoryCarousel();
-      if (carouselContainer) carouselContainer.style.display = 'block';
-    } else {
-      throw new Error(data.message || 'Failed to generate story.');
+  },
+  "8": {
+    name: "Class 8",
+    subjects: {
+      "Science": [
+        { id: "c8_sci_crops", title: "Crop Production and Management", file: "crop_production.mp4" },
+        { id: "c8_sci_micro", title: "Microorganisms: Friend and Foe", file: "microorganisms.mp4" },
+        { id: "c8_sci_coal", title: "Coal and Petroleum", file: "coal_petroleum.mp4" },
+        { id: "c8_sci_combustion", title: "Combustion and Flame", file: "combustion_flame.mp4" },
+        { id: "c8_sci_cell", title: "Cell - Structure and Functions", file: "cell_structure.mp4" },
+        { id: "c8_sci_reproduction", title: "Reproduction in Animals", file: "reproduction_animals.mp4" },
+        { id: "c8_sci_force", title: "Force and Pressure", file: "force_pressure.mp4" },
+        { id: "c8_sci_friction", title: "Friction", file: "friction.mp4" },
+        { id: "c8_sci_sound", title: "Sound", file: "sound.mp4" }
+      ],
+      "Mathematics": [
+        { id: "c8_math_rational", title: "Rational Numbers", file: "rational_numbers.mp4" },
+        { id: "c8_math_linear", title: "Linear Equations in One Variable", file: "linear_equations.mp4" },
+        { id: "c8_math_quad", title: "Understanding Quadrilaterals", file: "quadrilaterals.mp4" },
+        { id: "c8_math_squares", title: "Squares and Square Roots", file: "squares_roots.mp4" },
+        { id: "c8_math_cubes", title: "Cubes and Cube Roots", file: "cubes_roots.mp4" },
+        { id: "c8_math_algebraic", title: "Algebraic Expressions and Identities", file: "algebraic_identities.mp4" },
+        { id: "c8_math_mensuration", title: "Mensuration", file: "mensuration.mp4" }
+      ],
+      "Social Science": [
+        { id: "c8_soc_trade", title: "From Trade to Territory", file: "trade_territory.mp4" },
+        { id: "c8_soc_ruling", title: "Ruling the Countryside", file: "ruling_countryside.mp4" },
+        { id: "c8_soc_revolt", title: "When People Rebel: 1857 and After", file: "revolt_1857.mp4" },
+        { id: "c8_soc_resources", title: "Resources and Development", file: "resources.mp4" },
+        { id: "c8_soc_constitution", title: "The Indian Constitution", file: "constitution.mp4" }
+      ],
+      "English": [
+        { id: "c8_eng_christmas", title: "The Best Christmas Present in the World", file: "christmas_present.mp4" },
+        { id: "c8_eng_tsunami", title: "The Tsunami", file: "tsunami.mp4" },
+        { id: "c8_eng_glimpses", title: "Glimpses of the Past", file: "glimpses_past.mp4" },
+        { id: "c8_eng_summit", title: "The Summit Within", file: "summit_within.mp4" }
+      ],
+      "Tamil": [
+        { id: "c8_tam_vaazhthu", title: "தமிழ்மொழி வாழ்த்து (Tamil Mozhi Vaazhthu)", file: "tamil_vaazhthu.mp4" },
+        { id: "c8_tam_odai", title: "ஓடை (Odai)", file: "odai.mp4" },
+        { id: "c8_tam_kalvi", title: "கல்வி அழகே அழகு (Kalvi Azhage)", file: "kalvi_azhage.mp4" },
+        { id: "c8_tam_kaappom", title: "வருமுன் காப்போம் (Varumun Kaappom)", file: "varumun_kaappom.mp4" }
+      ]
     }
-  } catch (err) {
-    clearTimeout(statusTimer);
-    if (statusAlert) {
-      statusAlert.style.display = 'block';
-      statusAlert.style.backgroundColor = '#fef2f2';
-      statusAlert.style.color = '#dc2626';
-      statusAlert.style.border = '1px solid #fca5a5';
-      statusAlert.innerHTML = `<i data-lucide="alert-triangle"></i> ${escapeHtml(err.message)}`;
-      if (typeof lucide !== 'undefined') lucide.createIcons();
+  },
+  "9": {
+    name: "Class 9",
+    subjects: {
+      "Science": [
+        { id: "c9_sci_matter", title: "Matter in Our Surroundings", file: "matter_surroundings.mp4" },
+        { id: "c9_sci_pure", title: "Is Matter Around Us Pure?", file: "matter_pure.mp4" },
+        { id: "c9_sci_atoms", title: "Atoms and Molecules", file: "atoms_molecules.mp4" },
+        { id: "c9_sci_structure", title: "Structure of the Atom", file: "structure_atom.mp4" },
+        { id: "c9_sci_cell", title: "The Fundamental Unit of Life (Cell)", file: "cell_fundamental.mp4" },
+        { id: "c9_sci_tissues", title: "Tissues", file: "tissues.mp4" },
+        { id: "c9_sci_motion", title: "Motion", file: "motion.mp4" },
+        { id: "c9_sci_force", title: "Force and Laws of Motion", file: "force_laws_motion.mp4" },
+        { id: "c9_sci_gravitation", title: "Gravitation", file: "gravitation.mp4" },
+        { id: "c9_sci_work", title: "Work and Energy", file: "work_energy.mp4" },
+        { id: "c9_sci_sound", title: "Sound", file: "sound.mp4" }
+      ],
+      "Mathematics": [
+        { id: "c9_math_number_sys", title: "Number Systems", file: "number_systems.mp4" },
+        { id: "c9_math_poly", title: "Polynomials", file: "polynomials.mp4" },
+        { id: "c9_math_coord", title: "Coordinate Geometry", file: "coordinate_geometry.mp4" },
+        { id: "c9_math_linear", title: "Linear Equations in Two Variables", file: "linear_eq_2vars.mp4" },
+        { id: "c9_math_lines", title: "Lines and Angles", file: "lines_angles.mp4" },
+        { id: "c9_math_triangles", title: "Triangles", file: "triangles.mp4" },
+        { id: "c9_math_quads", title: "Quadrilaterals", file: "quadrilaterals.mp4" },
+        { id: "c9_math_circles", title: "Circles", file: "circles.mp4" },
+        { id: "c9_math_surface", title: "Surface Areas and Volumes", file: "surface_areas_volumes.mp4" }
+      ],
+      "Social Science": [
+        { id: "c9_soc_french", title: "The French Revolution", file: "french_revolution.mp4" },
+        { id: "c9_soc_russian", title: "Socialism in Europe & Russian Revolution", file: "russian_revolution.mp4" },
+        { id: "c9_soc_nazism", title: "Nazism and the Rise of Hitler", file: "nazism_hitler.mp4" },
+        { id: "c9_soc_india", title: "India - Size and Location", file: "india_size_location.mp4" },
+        { id: "c9_soc_physical", title: "Physical Features of India", file: "physical_features_india.mp4" },
+        { id: "c9_soc_democracy", title: "What is Democracy? Why Democracy?", file: "democracy.mp4" }
+      ],
+      "English": [
+        { id: "c9_eng_fun", title: "The Fun They Had", file: "the_fun_they_had.mp4" },
+        { id: "c9_eng_music", title: "The Sound of Music", file: "sound_of_music.mp4" },
+        { id: "c9_eng_girl", title: "The Little Girl", file: "little_girl.mp4" },
+        { id: "c9_eng_einstein", title: "A Truly Beautiful Mind", file: "truly_beautiful_mind.mp4" }
+      ],
+      "Tamil": [
+        { id: "c9_tam_dravidian", title: "திராவிட மொழிக்குடும்பம் (Dravidian Languages)", file: "dravida_mozhi.mp4" },
+        { id: "c9_tam_pattamaram", title: "பட்டமரம் (Pattamaram)", file: "pattamaram.mp4" },
+        { id: "c9_tam_manimegalai", title: "மணிமேகலை (Manimegalai)", file: "manimegalai.mp4" },
+        { id: "c9_tam_kudumba", title: "குடும்ப விளக்கு (Kudumba Vilakku)", file: "kudumba_vilakku.mp4" }
+      ]
     }
-  } finally {
-    if (submitBtn) submitBtn.disabled = false;
-    if (btnText) btnText.textContent = 'Generate Story';
-  }
-}
-
-let isNarratedVideoMode = false;
-let isNarrationPlaying = false;
-let currentNarrationUtterance = null;
-let isNarrationLoading = false;
-let narrationErrorText = '';
-
-function stopStoryNarration() {
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-  }
-  isNarrationPlaying = false;
-  isNarrationLoading = false;
-  currentNarrationUtterance = null;
-}
-
-function toggleNarratedVideoMode() {
-  if (isNarratedVideoMode) {
-    stopStoryNarration();
-    isNarratedVideoMode = false;
-    renderStoryCarousel();
-  } else {
-    isNarratedVideoMode = true;
-    isNarrationPlaying = true;
-    narrationErrorText = '';
-    currentSlideIndex = 0;
-    playSlideNarration(0);
-  }
-}
-
-function toggleNarrationPlayPause() {
-  if (!('speechSynthesis' in window)) return;
-
-  if (isNarrationPlaying) {
-    window.speechSynthesis.pause();
-    isNarrationPlaying = false;
-    renderStoryCarousel();
-  } else {
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-      isNarrationPlaying = true;
-      renderStoryCarousel();
-    } else {
-      isNarrationPlaying = true;
-      playSlideNarration(currentSlideIndex);
+  },
+  "10": {
+    name: "Class 10",
+    subjects: {
+      "Science": [
+        { id: "c10_sci_nervous", title: "Nervous System (Control & Coordination)", file: "videos/class10/science/nervous system/complete_educational_video.mp4" },
+        { id: "c10_sci_chemical", title: "Chemical Reactions and Equations", file: "chemical_reactions.mp4" },
+        { id: "c10_sci_acids", title: "Acids, Bases and Salts", file: "acids_bases_salts.mp4" },
+        { id: "c10_sci_metals", title: "Metals and Non-metals", file: "metals_nonmetals.mp4" },
+        { id: "c10_sci_carbon", title: "Carbon and its Compounds", file: "carbon_compounds.mp4" },
+        { id: "c10_sci_life", title: "Life Processes", file: "life_processes.mp4" },
+        { id: "c10_sci_heredity", title: "Heredity and Evolution", file: "heredity_evolution.mp4" },
+        { id: "c10_sci_light", title: "Light - Reflection and Refraction", file: "light_reflection.mp4" },
+        { id: "c10_sci_humaneye", title: "The Human Eye and Colourful World", file: "human_eye.mp4" },
+        { id: "c10_sci_electricity", title: "Electricity", file: "electricity.mp4" },
+        { id: "c10_sci_magnetic", title: "Magnetic Effects of Electric Current", file: "magnetic_effects.mp4" }
+      ],
+      "Mathematics": [
+        { id: "c10_math_real", title: "Real Numbers", file: "real_numbers.mp4" },
+        { id: "c10_math_poly", title: "Polynomials", file: "polynomials.mp4" },
+        { id: "c10_math_linear", title: "Pair of Linear Equations in Two Variables", file: "linear_equations_2vars.mp4" },
+        { id: "c10_math_quadratic", title: "Quadratic Equations", file: "quadratic_equations.mp4" },
+        { id: "c10_math_ap", title: "Arithmetic Progressions", file: "arithmetic_progressions.mp4" },
+        { id: "c10_math_triangles", title: "Triangles", file: "triangles.mp4" },
+        { id: "c10_math_coord", title: "Coordinate Geometry", file: "coordinate_geometry.mp4" },
+        { id: "c10_math_trig", title: "Introduction to Trigonometry", file: "intro_trigonometry.mp4" },
+        { id: "c10_math_circles", title: "Circles", file: "circles.mp4" },
+        { id: "c10_math_statistics", title: "Statistics and Probability", file: "statistics_probability.mp4" }
+      ],
+      "Social Science": [
+        { id: "c10_soc_nationalism_europe", title: "The Rise of Nationalism in Europe", file: "nationalism_europe.mp4" },
+        { id: "c10_soc_nationalism_india", title: "Nationalism in India", file: "nationalism_india.mp4" },
+        { id: "c10_soc_making_global", title: "The Making of a Global World", file: "global_world.mp4" },
+        { id: "c10_soc_resources", title: "Resources and Development", file: "resources_development.mp4" },
+        { id: "c10_soc_agriculture", title: "Agriculture", file: "agriculture.mp4" },
+        { id: "c10_soc_power_sharing", title: "Power Sharing", file: "power_sharing.mp4" },
+        { id: "c10_soc_federalism", title: "Federalism", file: "federalism.mp4" },
+        { id: "c10_soc_development", title: "Understanding Economic Development", file: "economic_development.mp4" }
+      ],
+      "English": [
+        { id: "c10_eng_letter_god", title: "A Letter to God", file: "letter_to_god.mp4" },
+        { id: "c10_eng_mandela", title: "Nelson Mandela: Long Walk to Freedom", file: "nelson_mandela.mp4" },
+        { id: "c10_eng_flying", title: "Two Stories About Flying", file: "stories_about_flying.mp4" },
+        { id: "c10_eng_anne_frank", title: "From the Diary of Anne Frank", file: "anne_frank.mp4" },
+        { id: "c10_eng_glimpses_india", title: "Glimpses of India", file: "glimpses_india.mp4" },
+        { id: "c10_eng_madam_rides", title: "Madam Rides the Bus", file: "madam_rides_bus.mp4" }
+      ],
+      "Tamil": [
+        { id: "c10_tam_annai", title: "அன்னை மொழியே (Annai Mozhiye)", file: "annai_mozhiye.mp4" },
+        { id: "c10_tam_kaatre", title: "காற்றே வா (Kaatre Vaa)", file: "kaatre_vaa.mp4" },
+        { id: "c10_tam_mullai", title: "முல்லைப்பாட்டு (Mullaippaattu)", file: "mullaippaattu.mp4" },
+        { id: "c10_tam_seyguthambi", title: "செய்குதம்பிப் பாவலர் (Seyguthambi Paavalar)", file: "seyguthambi_paavalar.mp4" },
+        { id: "c10_tam_kaalakkanitham", title: "காலக்கணிதம் (Kaalakkanitham)", file: "kaalakkanitham.mp4" }
+      ]
     }
   }
-}
+};
 
-function replayStoryNarration() {
-  stopStoryNarration();
-  isNarratedVideoMode = true;
-  isNarrationPlaying = true;
-  currentSlideIndex = 0;
-  playSlideNarration(0);
-}
+const DEFAULT_TEACHER_VIDEO = {
+  class: "10",
+  subject: "Science",
+  chapterId: "c10_sci_nervous",
+  path: "videos/class10/science/nervous system/complete_educational_video.mp4",
+  filename: "complete_educational_video.mp4"
+};
 
-function playSlideNarration(slideIdx) {
-  if (!('speechSynthesis' in window)) {
-    narrationErrorText = "Text-to-Speech narration is not supported in your browser.";
-    isNarratedVideoMode = false;
-    isNarrationPlaying = false;
-    renderStoryCarousel();
-    return;
-  }
+function initTeacherVideoModule() {
+  const classSelect = document.getElementById('teacherVideoClassSelect');
+  if (!classSelect) return;
 
-  stopStoryNarration();
-
-  if (!currentStoryData || !currentStoryData.slides) return;
-  const slides = currentStoryData.slides;
-
-  if (slideIdx < 0 || slideIdx >= slides.length) {
-    isNarrationPlaying = false;
-    isNarratedVideoMode = false;
-    renderStoryCarousel();
-    return;
-  }
-
-  currentSlideIndex = slideIdx;
-  isNarratingMode = true;
-  isNarrationPlaying = true;
-  isNarrationLoading = true;
-  narrationErrorText = '';
-  renderStoryCarousel();
-
-  const currentSlide = slides[slideIdx];
-  const textToSpeak = currentSlide.subtitle || currentStoryData.topic || '';
-
-  currentNarrationUtterance = new SpeechSynthesisUtterance(textToSpeak);
-  currentNarrationUtterance.rate = 0.92;
-  currentNarrationUtterance.pitch = 1.05;
-
-  const availableVoices = window.speechSynthesis.getVoices();
-  const childFriendlyVoice = availableVoices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Zira') || v.name.includes('Jenny') || v.name.includes('Samantha'))) || availableVoices.find(v => v.lang.startsWith('en'));
-  if (childFriendlyVoice) {
-    currentNarrationUtterance.voice = childFriendlyVoice;
-  }
-
-  currentNarrationUtterance.onstart = () => {
-    isNarrationLoading = false;
-    isNarrationPlaying = true;
-    renderStoryCarousel();
-  };
-
-  currentNarrationUtterance.onend = () => {
-    isNarrationLoading = false;
-    if (isNarratedVideoMode && isNarrationPlaying) {
-      if (slideIdx + 1 < slides.length) {
-        setTimeout(() => {
-          if (isNarratedVideoMode && isNarrationPlaying) {
-            playSlideNarration(slideIdx + 1);
-          }
-        }, 700);
-      } else {
-        isNarrationPlaying = false;
-        renderStoryCarousel();
-      }
-    }
-  };
-
-  currentNarrationUtterance.onerror = (err) => {
-    console.error("Speech Synthesis Error for slide", slideIdx + 1, err);
-    isNarrationLoading = false;
-    narrationErrorText = `Narration encountered an error on Slide ${slideIdx + 1}. You can continue reading manually.`;
-    renderStoryCarousel();
-  };
-
-  window.speechSynthesis.speak(currentNarrationUtterance);
-}
-
-function renderStoryCarousel() {
-  const container = document.getElementById('storyCarouselContainer');
-  if (!container || !currentStoryData || !currentStoryData.slides || currentStoryData.slides.length === 0) return;
-
-  const slides = currentStoryData.slides;
-  const totalSlides = slides.length;
-  if (currentSlideIndex < 0) currentSlideIndex = 0;
-  if (currentSlideIndex >= totalSlides) currentSlideIndex = totalSlides - 1;
-
-  const slide = slides[currentSlideIndex];
-
-  let dotsHtml = '';
-  for (let i = 0; i < totalSlides; i++) {
-    const isActive = i === currentSlideIndex;
-    dotsHtml += `
-      <button onclick="goToStorySlide(${i})" 
-              title="Slide ${i + 1}"
-              style="width: ${isActive ? '28px' : '10px'}; height: 10px; border-radius: 6px; background: ${isActive ? '#8b5cf6' : '#cbd5e1'}; border: none; cursor: pointer; transition: all 0.3s ease;">
-      </button>
-    `;
-  }
-
-  const progressPercent = Math.round(((currentSlideIndex + 1) / totalSlides) * 100);
-
-  container.innerHTML = `
-    <div class="card-3d story-carousel-card" style="padding: 24px; border: 2px solid #e2e8f0; background: #ffffff; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);">
-      
-      <!-- Top Title & Badge Header -->
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">
-        <div>
-          <h3 style="margin: 0; font-size: 1.3rem; color: #1e293b;">${escapeHtml(currentStoryData.title || ('Story: ' + currentStoryData.topic))}</h3>
-          <span style="font-size: 0.85rem; color: #64748b;">Topic: <strong>${escapeHtml(currentStoryData.topic)}</strong></span>
-        </div>
-        <div style="display: flex; gap: 8px;">
-          <span style="background: #f3e8ff; color: #7e22ce; font-weight: 700; font-size: 0.8rem; padding: 4px 10px; border-radius: 20px;">
-            <i data-lucide="graduation-cap" style="width: 14px; height: 14px; vertical-align: middle;"></i> ${escapeHtml(currentStoryData.grade)}
-          </span>
-          <span style="background: #e0f2fe; color: #0369a1; font-weight: 700; font-size: 0.8rem; padding: 4px 10px; border-radius: 20px;">
-            Slide ${slide.slide_number || (currentSlideIndex + 1)} of ${totalSlides}
-          </span>
-        </div>
-      </div>
-
-      <!-- Narrated Video Playback Control Panel (Shown when Narrated Video Mode is Active) -->
-      ${isNarratedVideoMode ? `
-        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); border-radius: 12px; padding: 14px 18px; margin-bottom: 18px; color: #ffffff; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);">
-          
-          <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <button onclick="toggleNarrationPlayPause()" class="btn-3d" style="background: #8b5cf6; border-color: #7c3aed; color: #ffffff; padding: 6px 16px; font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
-                <i data-lucide="${isNarrationPlaying ? 'pause' : 'play'}"></i> ${isNarrationPlaying ? 'Pause' : 'Play'}
-              </button>
-              <button onclick="replayStoryNarration()" class="btn-3d" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #ffffff; padding: 6px 14px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 6px;">
-                <i data-lucide="rotate-ccw"></i> Replay
-              </button>
-            </div>
-
-            <div style="font-size: 0.85rem; font-weight: 700; color: #a7f3d0; display: flex; align-items: center; gap: 6px;">
-              ${isNarrationLoading ? `
-                <span class="loading-spinner" style="width: 14px; height: 14px;"></span> Preparing narration...
-              ` : (isNarrationPlaying ? `
-                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; animation: pulse 1.5s infinite;"></span> Auto-Playing Synced Narration
-              ` : `
-                <i data-lucide="pause-circle" style="width: 14px; height: 14px;"></i> Narration Paused
-              `)}
-            </div>
-          </div>
-
-          <!-- Video Progress Bar -->
-          <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.15); border-radius: 4px; overflow: hidden;">
-            <div style="width: ${progressPercent}%; height: 100%; background: linear-gradient(90deg, #8b5cf6, #ec4899); transition: width 0.4s ease; border-radius: 4px;"></div>
-          </div>
-
-        </div>
-      ` : ''}
-
-      <!-- Narration Error Banner -->
-      ${narrationErrorText ? `
-        <div style="background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; padding: 10px 14px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
-          <i data-lucide="alert-circle" style="width: 18px; height: 18px; flex-shrink: 0;"></i>
-          <span>${escapeHtml(narrationErrorText)}</span>
-        </div>
-      ` : ''}
-
-      <!-- Slide Main Canvas Card -->
-      <div class="carousel-slide-content" style="background: #f8fafc; border-radius: 14px; padding: 20px; border: 1.5px solid #e2e8f0; margin-bottom: 20px;">
-        
-        <!-- Actual AI Image Frame (16:9 Aspect Ratio) -->
-        <div class="illustration-frame" style="width: 100%; aspect-ratio: 16 / 9; max-height: 420px; border-radius: 12px; overflow: hidden; background: #0f172a; border: 1.5px solid #cbd5e1; margin-bottom: 18px; position: relative; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
-          ${slide.image_url && slide.image_status !== 'failed' ? `
-            <img src="${escapeHtml(slide.image_url)}" 
-                 alt="Educational Illustration for ${escapeHtml(currentStoryData.topic)}" 
-                 style="width: 100%; height: 100%; object-fit: contain; display: block;" 
-                 onerror="handleSlideImageError(this, ${currentStoryData.id || 0}, ${slide.slide_number})" />
-          ` : `
-            <div style="padding: 30px; text-align: center; color: #94a3b8; width: 100%;">
-              <i data-lucide="image-off" style="width: 42px; height: 42px; margin-bottom: 8px; color: #ef4444;"></i>
-              <p style="font-weight: 700; color: #cbd5e1; margin: 0 0 10px 0;">Illustration unavailable</p>
-              <button onclick="retrySlideImage(${currentStoryData.id || 0}, ${slide.slide_number})" class="btn-3d btn-3d-purple" style="font-size: 0.85rem; padding: 6px 14px;">
-                <i data-lucide="refresh-cw"></i> Retry Image
-              </button>
-            </div>
-          `}
-        </div>
-
-        <!-- Subtitle Box (Placed strictly BELOW the image frame) -->
-        <div class="subtitle-box" style="background: #ffffff; padding: 18px 22px; border-radius: 10px; border-left: 4px solid #8b5cf6; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
-          <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #8b5cf6; letter-spacing: 0.5px; margin-bottom: 6px;">
-            Slide ${slide.slide_number || (currentSlideIndex + 1)} Explanation
-          </div>
-          <p id="slideSubtitleText" style="font-size: 1.15rem; line-height: 1.55; color: #1e293b; margin: 0; font-weight: 600;">
-            ${escapeHtml(slide.subtitle)}
-          </p>
-        </div>
-
-      </div>
-
-      <!-- Carousel Navigation Controls -->
-      <div style="display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
-        <button onclick="prevStorySlide()" class="btn-3d" ${currentSlideIndex === 0 ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''} style="padding: 10px 20px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-          <i data-lucide="chevron-left"></i> Previous
-        </button>
-
-        <!-- New Narrated Video / Audio Mode Toggle Button -->
-        <button onclick="toggleNarratedVideoMode()" class="btn-3d" style="padding: 10px 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; background: ${isNarratedVideoMode ? '#db2777' : '#059669'}; border-color: ${isNarratedVideoMode ? '#be185d' : '#047857'}; color: #ffffff;">
-          <i data-lucide="${isNarratedVideoMode ? 'book-open' : 'video'}"></i> ${isNarratedVideoMode ? 'Read Manually' : 'Play Narrated Video'}
-        </button>
-
-        <div style="display: flex; align-items: center; gap: 8px;">
-          ${dotsHtml}
-        </div>
-
-        <button onclick="nextStorySlide()" class="btn-3d btn-3d-purple" ${currentSlideIndex === totalSlides - 1 ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''} style="padding: 10px 20px; font-weight: 700; display: flex; align-items: center; gap: 6px; background-color: #8b5cf6; border-color: #7c3aed; color: #fff;">
-          Next <i data-lucide="chevron-right"></i>
-        </button>
-      </div>
-
-    </div>
-  `;
+  // Set default filter: Class 10, Science, Nervous System
+  classSelect.value = DEFAULT_TEACHER_VIDEO.class;
+  populateTeacherSubjects();
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-function prevStorySlide() {
-  if (isNarratedVideoMode) {
-    stopStoryNarration();
-    isNarratedVideoMode = false;
-  }
-  if (currentStoryData && currentSlideIndex > 0) {
-    currentSlideIndex--;
-    renderStoryCarousel();
-  }
+function onTeacherVideoClassChanged() {
+  populateTeacherSubjects();
 }
 
-function nextStorySlide() {
-  if (isNarratedVideoMode) {
-    stopStoryNarration();
-    isNarratedVideoMode = false;
+function populateTeacherSubjects() {
+  const classSelect = document.getElementById('teacherVideoClassSelect');
+  const subjectSelect = document.getElementById('teacherVideoSubjectSelect');
+  if (!classSelect || !subjectSelect) return;
+
+  const selectedClass = classSelect.value || "10";
+  const classData = TEACHER_VIDEO_CATALOG[selectedClass];
+  if (!classData || !classData.subjects) return;
+
+  const currentSubject = subjectSelect.value;
+  subjectSelect.innerHTML = '';
+
+  const subjects = Object.keys(classData.subjects);
+  subjects.forEach(subject => {
+    const opt = document.createElement('option');
+    opt.value = subject;
+    opt.textContent = subject;
+    subjectSelect.appendChild(opt);
+  });
+
+  if (selectedClass === DEFAULT_TEACHER_VIDEO.class && subjects.includes(DEFAULT_TEACHER_VIDEO.subject)) {
+    subjectSelect.value = DEFAULT_TEACHER_VIDEO.subject;
+  } else if (subjects.includes(currentSubject)) {
+    subjectSelect.value = currentSubject;
+  } else if (subjects.length > 0) {
+    subjectSelect.value = subjects[0];
   }
-  if (currentStoryData && currentStoryData.slides && currentSlideIndex < currentStoryData.slides.length - 1) {
-    currentSlideIndex++;
-    renderStoryCarousel();
-  }
+
+  onTeacherVideoSubjectChanged();
 }
 
-function goToStorySlide(idx) {
-  if (isNarratedVideoMode) {
-    stopStoryNarration();
-    isNarratedVideoMode = false;
+function onTeacherVideoSubjectChanged() {
+  const classSelect = document.getElementById('teacherVideoClassSelect');
+  const subjectSelect = document.getElementById('teacherVideoSubjectSelect');
+  const chapterSelect = document.getElementById('teacherVideoChapterSelect');
+  if (!classSelect || !subjectSelect || !chapterSelect) return;
+
+  const selectedClass = classSelect.value || "10";
+  const selectedSubject = subjectSelect.value;
+  const classData = TEACHER_VIDEO_CATALOG[selectedClass];
+
+  chapterSelect.innerHTML = '';
+
+  if (classData && classData.subjects && classData.subjects[selectedSubject]) {
+    const chapters = classData.subjects[selectedSubject];
+    chapters.forEach(chap => {
+      const opt = document.createElement('option');
+      opt.value = chap.id;
+      opt.textContent = chap.title;
+      chapterSelect.appendChild(opt);
+    });
   }
-  if (currentStoryData && currentStoryData.slides && idx >= 0 && idx < currentStoryData.slides.length) {
-    currentSlideIndex = idx;
-    renderStoryCarousel();
+
+  // If Class 10 and Science, select Nervous System by default
+  if (selectedClass === DEFAULT_TEACHER_VIDEO.class && selectedSubject === DEFAULT_TEACHER_VIDEO.subject) {
+    chapterSelect.value = DEFAULT_TEACHER_VIDEO.chapterId;
   }
+
+  onTeacherVideoChapterChanged();
 }
 
-function handleSlideImageError(imgElem, storyId, slideNumber) {
-  if (!imgElem || !imgElem.parentNode) return;
-  const frame = imgElem.parentNode;
-  frame.innerHTML = `
-    <div style="padding: 30px; text-align: center; color: #94a3b8; width: 100%;">
-      <i data-lucide="image-off" style="width: 42px; height: 42px; margin-bottom: 8px; color: #ef4444;"></i>
-      <p style="font-weight: 700; color: #cbd5e1; margin: 0 0 10px 0;">Illustration unavailable</p>
-      <button onclick="retrySlideImage(${storyId}, ${slideNumber})" class="btn-3d btn-3d-purple" style="font-size: 0.85rem; padding: 6px 14px;">
-        <i data-lucide="refresh-cw"></i> Retry Image
-      </button>
-    </div>
-  `;
+function onTeacherVideoChapterChanged() {
+  const classSelect = document.getElementById('teacherVideoClassSelect');
+  const subjectSelect = document.getElementById('teacherVideoSubjectSelect');
+  const chapterSelect = document.getElementById('teacherVideoChapterSelect');
+  const player = document.getElementById('teacherVideoPlayer');
+  const fallback = document.getElementById('teacherVideoFallback');
+  const toolbar = document.getElementById('teacherVideoControlsToolbar');
+  const classBadge = document.getElementById('teacherVideoClassBadge');
+  const subjectBadge = document.getElementById('teacherVideoSubjectBadge');
+  const chapterBadge = document.getElementById('teacherVideoChapterBadge');
+  const sourceBadge = document.getElementById('teacherVideoSourceBadge');
+  const fallbackTitle = document.getElementById('teacherFallbackTitle');
+  const fallbackSubtitle = document.getElementById('teacherFallbackSubtitle');
+  const fileNameDisplay = document.getElementById('teacherVideoFileNameDisplay');
+
+  if (!classSelect || !subjectSelect || !chapterSelect) return;
+
+  const selectedClass = classSelect.value || "10";
+  const selectedSubject = subjectSelect.value || "";
+  const selectedChapterId = chapterSelect.value;
+  const selectedOption = chapterSelect.selectedOptions[0];
+  const chapterTitle = selectedOption ? selectedOption.textContent : "Selected Chapter";
+
+  if (classBadge) classBadge.textContent = `Class ${selectedClass}`;
+  if (subjectBadge) subjectBadge.textContent = selectedSubject;
+  if (chapterBadge) chapterBadge.textContent = chapterTitle;
+
+  // DISPLAY VIDEO ONLY WHEN Class 10, Science, Nervous System is selected
+  const isTargetFilter = (selectedClass === DEFAULT_TEACHER_VIDEO.class &&
+                          selectedSubject === DEFAULT_TEACHER_VIDEO.subject &&
+                          selectedChapterId === DEFAULT_TEACHER_VIDEO.chapterId);
+
+  if (isTargetFilter) {
+    const videoUrl = encodeURI(DEFAULT_TEACHER_VIDEO.path);
+
+    if (player) {
+      if (!player.src.endsWith(DEFAULT_TEACHER_VIDEO.path) && player.src !== window.location.origin + '/' + DEFAULT_TEACHER_VIDEO.path) {
+        player.src = videoUrl;
+        player.load();
+      }
+      player.style.display = 'block';
+    }
+
+    if (fallback) fallback.style.display = 'none';
+    if (toolbar) toolbar.style.display = 'flex';
+
+    if (sourceBadge) {
+      sourceBadge.innerHTML = '<i data-lucide="play-circle" style="width: 14px; height: 14px; color: #16a34a;"></i> Video Ready';
+      sourceBadge.style.color = '#15803d';
+      sourceBadge.style.background = '#dcfce7';
+    }
+
+    if (fileNameDisplay) {
+      fileNameDisplay.innerHTML = `<i data-lucide="film" style="width: 16px; height: 16px; color: #0ea5e9;"></i> Lesson Video: <strong>${escapeHtml(DEFAULT_TEACHER_VIDEO.filename)}</strong>`;
+    }
+  } else {
+    // Hide video player and controls when other filters are applied
+    if (player) {
+      player.pause();
+      player.removeAttribute('src');
+      player.load();
+      player.style.display = 'none';
+    }
+
+    if (fallback) fallback.style.display = 'flex';
+    if (toolbar) toolbar.style.display = 'none';
+
+    if (fallbackTitle) {
+      fallbackTitle.textContent = 'No Video Available';
+    }
+    if (fallbackSubtitle) {
+      fallbackSubtitle.innerHTML = `No video lesson is configured for <strong>${escapeHtml(chapterTitle)}</strong>.<br>Video lesson is currently available for <strong>Class 10 &rarr; Science &rarr; Nervous System (Control &amp; Coordination)</strong>.`;
+    }
+
+    if (sourceBadge) {
+      sourceBadge.innerHTML = '<i data-lucide="video-off" style="width: 14px; height: 14px; color: #64748b;"></i> No Video';
+      sourceBadge.style.color = '#64748b';
+      sourceBadge.style.background = '#f1f5f9';
+    }
+  }
+
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-async function retrySlideImage(storyId, slideNumber) {
-  if (!storyId) return;
-  const alertBox = document.getElementById('storyStatusAlert');
-
-  if (alertBox) {
-    alertBox.style.display = 'block';
-    alertBox.style.backgroundColor = '#eff6ff';
-    alertBox.style.color = '#1d4ed8';
-    alertBox.style.border = '1px solid #93c5fd';
-    alertBox.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; gap:10px;"><span class="loading-spinner"></span> Regenerating image for slide ${slideNumber}...</div>`;
-  }
-
-  try {
-    const res = await authFetch('/api/story/retry-image', {
-      method: 'POST',
-      body: JSON.stringify({ story_id: storyId, slide_number: slideNumber })
-    });
-    const data = await res.json();
-    if (res.ok && data.success && data.slide && data.slide.image_url) {
-      if (currentStoryData && currentStoryData.slides) {
-        const slideIdx = currentStoryData.slides.findIndex(s => s.slide_number === slideNumber);
-        if (slideIdx !== -1) {
-          currentStoryData.slides[slideIdx].image_url = data.slide.image_url;
-          currentStoryData.slides[slideIdx].image_status = 'ready';
-        }
-      }
-      if (alertBox) alertBox.style.display = 'none';
-      renderStoryCarousel();
-    } else {
-      throw new Error(data.message || 'Failed to retry image generation.');
-    }
-  } catch (err) {
-    if (alertBox) {
-      alertBox.style.display = 'block';
-      alertBox.style.backgroundColor = '#fef2f2';
-      alertBox.style.color = '#dc2626';
-      alertBox.style.border = '1px solid #fca5a5';
-      alertBox.innerHTML = `<i data-lucide="alert-triangle"></i> ${escapeHtml(err.message)}`;
-      if (typeof lucide !== 'undefined') lucide.createIcons();
-    }
+function restartTeacherVideo() {
+  const player = document.getElementById('teacherVideoPlayer');
+  if (player) {
+    player.currentTime = 0;
+    player.play().catch(() => {});
   }
 }
 
+function changeTeacherVideoSpeed(speed) {
+  const player = document.getElementById('teacherVideoPlayer');
+  if (player) {
+    player.playbackRate = parseFloat(speed) || 1.0;
+  }
+}
 
+function toggleTeacherVideoFullscreen() {
+  const player = document.getElementById('teacherVideoPlayer');
+  if (!player) return;
 
+  if (!document.fullscreenElement) {
+    if (player.requestFullscreen) {
+      player.requestFullscreen();
+    } else if (player.webkitRequestFullscreen) {
+      player.webkitRequestFullscreen();
+    } else if (player.msRequestFullscreen) {
+      player.msRequestFullscreen();
+    }
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+  }
+}

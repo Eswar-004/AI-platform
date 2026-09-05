@@ -1,0 +1,57 @@
+{
+  "chapter_title": "Nervous System",
+  "subject": "Science",
+  "class": 10,
+  "scenes": [
+    {
+      "scene_id": 1,
+      "title": "Stimulus, Response and Coordination",
+      "concept": "Stimulus and response",
+      "narration": "All living things constantly monitor their surroundings. When a change such as light, heat, or sound is detected by specialized receptors, the body generates a response that helps it survive. This rapid reaction, involving many organs working together, is called coordination.",
+      "visual_description": "A human figure in the centre surrounded by icons for light, heat, sound and touch. Arrows point from each icon to small receptor symbols on the figure, then to the brain and muscles, illustrating stimulus leading to response and coordinated action.",
+      "image_prompt": "Illustration of a human figure surrounded by icons representing light, heat, sound, and touch; arrows showing detection by receptors and coordinated response involving brain and muscles, with a label 'Stimulus → Response → Coordination'. Simple, colorful, suitable for animation.",
+      "image": "storymode/images/science/nervous_system/slide1.jpg",
+      "duration_seconds": 10
+    },
+    {
+      "scene_id": 2,
+      "title": "Neuron – Basic Building Block",
+      "concept": "Neuron structure",
+      "narration": "A neuron is the fundamental unit of the nervous system. It consists of a cell body (cyton) containing the nucleus, branching dendrites that receive signals, and a long axon that carries impulses away. Many axons are insulated by a myelin sheath, speeding up transmission.",
+      "visual_description": "Close‑up of a single neuron: labeled cell body with nucleus, multiple dendrites extending outward, a long axon with segmented myelin sheath and nodes of Ranvier, ending in synaptic knobs. Background is plain to focus on the cell.",
+      "image_prompt": "Detailed diagram of a single neuron showing labeled cell body (cyton) with nucleus, multiple dendrites branching outward, a long axon with myelin sheath segments and nodes of Ranvier, ending in synaptic knobs. Transparent background for animation.",
+      "image": "storymode/images/science/nervous_system/slide2.jpg",
+      "duration_seconds": 10
+    },
+    {
+      "scene_id": 3,
+      "title": "Varieties of Neurons",
+      "concept": "Types of neurons",
+      "narration": "Neurons differ in shape and role. Unipolar neurons have a single process, bipolar have two, and multipolar have many dendrites plus one axon. Functionally, sensory neurons bring information from sense organs to the brain, motor neurons send commands to muscles, and association neurons link the two.",
+      "visual_description": "Three neuron sketches side by side: (A) unipolar with one process, (B) bipolar with two processes, (C) multipolar with many dendrites and one axon. Below each, small icons depict sensory, motor and association functions respectively.",
+      "image_prompt": "Three side‑by‑side neuron sketches: (A) unipolar with one process, (B) bipolar with two processes, (C) multipolar with many dendrites and one axon. Below each, icons for sensory, motor, and association functions. Clear labels, educational style.",
+      "image": "storymode/images/science/nervous_system/slide3.jpg",
+      "duration_seconds": 10
+    },
+    {
+      "scene_id": 4,
+      "title": "How Nerve Impulses Travel",
+      "concept": "Impulse transmission",
+      "narration": "When a stimulus reaches a dendrite, an electrical impulse travels to the cell body and then down the axon to its terminal. At the synapse, the impulse triggers release of the neurotransmitter acetylcholine, which crosses the gap and starts a new impulse in the next neuron.",
+      "visual_description": "Animated flow: stimulus hitting a dendrite, arrow to cell body, down the axon, reaching a synaptic knob that releases acetylcholine molecules across a synaptic cleft to the dendrite of the next neuron. Electrical wave shown in blue, chemicals in red.",
+      "image_prompt": "Sequence showing impulse flow: stimulus hitting dendrite, arrow to cell body, down axon, reaching synaptic knob releasing acetylcholine molecules across a synaptic cleft to the next neuron's dendrite. Color‑coded electrical wave and chemical particles.",
+      "image": "storymode/images/science/nervous_system/slide4.jpg",
+      "duration_seconds": 10
+    },
+    {
+      "scene_id": 5,
+      "title": "Reflex Action – The Hot Pan Example",
+      "concept": "Reflex arc",
+      "narration": "Touching a hot pan activates heat receptors in the skin, sending a signal through a sensory neuron to the spinal cord. The signal is passed to a relay neuron, then to a motor neuron that commands arm muscles to contract, pulling the hand away instantly.",
+      "visual_description": "Storyboard: hand touching a hot pan, heat receptors highlighted, arrow to sensory neuron, path to spinal cord, relay neuron, motor neuron, and finally muscle fibers contracting to pull the hand back. Each step labeled as part of the reflex arc.",
+      "image_prompt": "Storyboard of a hand touching a hot pan: heat receptors highlighted, arrow to sensory neuron, path to spinal cord, relay neuron, motor neuron, and muscle contraction pulling hand away. Labels for each step of the reflex arc.",
+      "image": "storymode/images/science/nervous_system/slide5.jpg",
+      "duration_seconds": 10
+    }
+  ]
+}
